@@ -57,8 +57,8 @@ async def _agenda(user: dict, j: date) -> list[dict]:
     try:
         for m in (await _profil(user)).get("markets") or []:
             devises |= DEVISES_AGENDA.get(m, set())
-    except Exception:
-        pass
+    except Exception as e:
+        logger.info("profil illisible pour l'agenda de demain : %s", e)
     debut = datetime(j.year, j.month, j.day, tzinfo=PARIS)
     try:
         lignes = await calendrier.evenements(debut, debut + timedelta(days=1), devises=devises, importance_min="Medium")

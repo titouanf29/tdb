@@ -203,6 +203,18 @@ function EcranAlertes() {
   );
 }
 
+/** L'analyse réelle d'un actif de la démo, ou null si le moteur ne répond pas. */
+async function chargerActif(id: string): Promise<DemoAsset | null> {
+  try {
+    const r = await fetch(`/api/demo/${id}`);
+    if (!r.ok) return null;
+    const v = (await r.json()) as DemoAsset;
+    return v?.id ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 /* ── La section ──────────────────────────────────────────────────────── */
 
 export function UsagesSection() {
@@ -225,12 +237,13 @@ export function UsagesSection() {
   }, []);
   useEffect(() => {
     if (!visible) return;
-    DEMO_ASSETS.forEach((a) => {
-      fetch(`/api/demo/${a.id}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((v: DemoAsset | null) => { if (v?.id) setVivants((x) => ({ ...x, [v.id]: v })); })
-        .catch(() => {});
+    let vivant = true;
+    Promise.all(DEMO_ASSETS.map((a) => chargerActif(a.id))).then((liste) => {
+      if (!vivant) return;
+      const charges = Object.fromEntries(liste.filter((v): v is DemoAsset => v != null).map((v) => [v.id, v]));
+      setVivants((x) => ({ ...x, ...charges }));
     });
+    return () => { vivant = false; };
   }, [visible]);
   useEffect(() => {
     if (!visible || !actifs || pause) return;

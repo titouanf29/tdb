@@ -254,16 +254,8 @@ export default function TradingPage() {
   // LES NIVEAUX SE VÉRIFIENT À LA SAISIE. Un stop au-dessus du prix sur un
   // achat passait le calcul de taille sans un mot, puis le serveur le
   // refusait au clic, et son message restait affiché une fois corrigé.
-  const erreurStop = useSL && stopLoss != null && price > 0
-    ? (direction === "LONG" && stopLoss >= price ? `Sur un achat, le stop se place sous le prix d'entrée (${assetPrice(price)}).`
-      : direction === "SHORT" && stopLoss <= price ? `Sur une vente, le stop se place au-dessus du prix d'entrée (${assetPrice(price)}).`
-      : null)
-    : null;
-  const erreurObjectif = useTP && takeProfit != null && price > 0
-    ? (direction === "LONG" && takeProfit <= price ? `Sur un achat, l'objectif se place au-dessus du prix d'entrée (${assetPrice(price)}).`
-      : direction === "SHORT" && takeProfit >= price ? `Sur une vente, l'objectif se place sous le prix d'entrée (${assetPrice(price)}).`
-      : null)
-    : null;
+  const erreurStop = useSL ? erreurDeNiveau("stop", direction, price, stopLoss, assetPrice) : null;
+  const erreurObjectif = useTP ? erreurDeNiveau("objectif", direction, price, takeProfit, assetPrice) : null;
   useEffect(() => { setError(""); }, [stopLoss, takeProfit, amount, leverage, direction, symbol]);
 
   const money = useCallback(
@@ -337,6 +329,15 @@ export default function TradingPage() {
       setSubmitting(false);
     }
   };
+
+  // Le bouton dit ce qu'il fait : quoi, pour combien, avec quel levier.
+  let libelleBouton: string;
+  if (turbo) {
+    libelleBouton = `Acheter ${unites} titre${unites > 1 ? "s" : ""} · turbo ${direction === "LONG" ? "long" : "short"}`;
+  } else {
+    const levierTexte = leverage > 1 ? ` · levier ×${leverage}` : "";
+    libelleBouton = `${direction === "LONG" ? "Acheter" : "Vendre"} pour ${money(amount)}${levierTexte}`;
+  }
 
   const riskTone = useMemo(() => {
     if (risqueStopPct == null) return "muted" as const;
@@ -759,17 +760,37 @@ export default function TradingPage() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Ouverture…
                 </>
-              ) : (
-                turbo
-                  ? `Acheter ${unites} titre${unites > 1 ? "s" : ""} · turbo ${direction === "LONG" ? "long" : "short"}`
-                  : `${direction === "LONG" ? "Acheter" : "Vendre"} pour ${money(amount)}${leverage > 1 ? ` · levier ×${leverage}` : ""}`
-              )}
+              ) : libelleBouton}
             </Button>}
           </div>
         </form>
       </div>
     </>
   );
+}
+
+/**
+ * Le stop d'un achat se place sous le prix, l'objectif au-dessus ; l'inverse
+ * pour une vente. Rend la phrase à afficher quand ce n'est pas le cas.
+ */
+function erreurDeNiveau(
+  quoi: "stop" | "objectif",
+  direction: "LONG" | "SHORT",
+  prix: number,
+  niveau: number | null,
+  format: (v: number) => string,
+): string | null {
+  if (niveau == null || prix <= 0) return null;
+  const achat = direction === "LONG";
+  // Le stop est du mauvais côté s'il est au-dessus du prix sur un achat (ou
+  // en dessous sur une vente) ; l'objectif, c'est le contraire.
+  const dessous = quoi === "stop" ? achat : !achat;
+  const mal = dessous ? niveau >= prix : niveau <= prix;
+  if (!mal) return null;
+  const sens = achat ? "un achat" : "une vente";
+  const ou = dessous ? "sous" : "au-dessus du";
+  const nom = quoi === "stop" ? "le stop" : "l'objectif";
+  return `Sur ${sens}, ${nom} se place ${ou} ${dessous ? "le " : ""}prix d'entrée (${format(prix)}).`;
 }
 
 /**

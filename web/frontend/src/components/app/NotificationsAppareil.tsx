@@ -54,6 +54,8 @@ export function NotificationsAppareil({ forme }: { forme: "reglage" | "invitatio
   if (forme === "invitation" || forme === "matin") {
     if (etat !== "inactif" || cachee) return null;
     const matin = forme === "matin";
+    let libelleBouton = matin ? "Recevoir le point du matin" : "Me prévenir";
+    if (occupe) libelleBouton = "…";
     return (
       <div className="cap-apparait flex items-start gap-3 rounded-[var(--cap-r-lg)] p-4"
         style={{ backgroundColor: "color-mix(in srgb, var(--cap-ocean) 7%, var(--cap-surface))", boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--cap-ocean) 25%, transparent)" }}>
@@ -71,7 +73,7 @@ export function NotificationsAppareil({ forme }: { forme: "reglage" | "invitatio
           </Text>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <Button size="md" onClick={activer} disabled={occupe}>
-              <BellRing className="h-4 w-4" /> {occupe ? "…" : matin ? "Recevoir le point du matin" : "Me prévenir"}
+              <BellRing className="h-4 w-4" /> {libelleBouton}
             </Button>
             {message && <Text size="caption" as="span">{message}</Text>}
           </div>

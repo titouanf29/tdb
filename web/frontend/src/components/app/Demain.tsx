@@ -15,6 +15,14 @@ import { formatCours } from "@/lib/devise";
  * s'affiche que s'il a quelque chose de particulier à dire : une annonce,
  * un plan de Nimbo encore ouvert sur un favori, une position sans stop.
  */
+/** « 16:00 » → « 16 h », « 14:30 » → « 14 h 30 » ; « journée » reste tel quel. */
+function heureLisible(h: string): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(h);
+  if (!m) return h;
+  const minutes = m[2] === "00" ? "" : ` ${m[2]}`;
+  return `${Number(m[1])} h${minutes}`;
+}
+
 export function Demain() {
   const [d, setD] = useState<Donnees | null>(null);
 
@@ -55,7 +63,7 @@ export function Demain() {
         {d.agenda.map((a, i) => (
           <li key={`${a.heure}-${i}`} className="flex items-baseline gap-3 border-b py-2.5" style={{ borderColor: "var(--cap-line)" }}>
             <span className="cap-num w-14 shrink-0 text-[0.88rem]" style={{ color: a.importance === "forte" ? "var(--cap-amber-ink)" : "var(--cap-ink-3)" }}>
-              {a.heure.replace(/^(\d{1,2}):(\d{2})$/, (_, h, m) => `${Number(h)} h${m === "00" ? "" : ` ${m}`}`)}
+              {heureLisible(a.heure)}
             </span>
             <span className="min-w-0">
               <span className="block text-[0.93rem]" style={{ color: "var(--cap-ink)" }}>{a.titre}</span>
