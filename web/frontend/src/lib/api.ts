@@ -1180,6 +1180,8 @@ export interface TradeReview {
 }
 
 export interface PositionResult {
+  /** La ligne du journal écrite à la clôture, à compléter plutôt qu'à recréer. */
+  journal_entry_id?: number | null;
   success: boolean;
   message: string;
   entry_price?: number;
@@ -3192,7 +3194,10 @@ export interface JournalEntry {
 }
 
 export interface JournalStats {
+  /** Les entrées tranchées (gagné, perdu, à l'équilibre). */
   total: number;
+  /** Toutes les entrées, notes sans résultat comprises. */
+  entrees?: number;
   wins: number;
   losses: number;
   breakevens: number;

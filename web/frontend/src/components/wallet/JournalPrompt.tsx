@@ -56,6 +56,13 @@ export function JournalPrompt({
     setBusy(true);
     setError("");
     try {
+      // La clôture a déjà écrit la ligne : la note la complète. Sans ligne
+      // (réponse sans identifiant), on la crée comme avant.
+      if (draft.journal_entry_id) {
+        await journalAPI.update(draft.journal_entry_id, { post_trade_notes: notes });
+        setSaved(true);
+        return;
+      }
       await journalAPI.create({
         symbol: draft.symbol,
         direction: draft.direction,

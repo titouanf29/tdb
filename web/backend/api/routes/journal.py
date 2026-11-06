@@ -164,16 +164,21 @@ async def get_stats(current_user: dict = Depends(get_current_user)):
         "SELECT result, pnl, risk_reward FROM trading_journal WHERE user_id = ?",
         (user_id,),
     )
-    total = len(rows)
-    wins = sum(1 for r in rows if r.get("result") == "win")
-    losses = sum(1 for r in rows if r.get("result") == "loss")
-    breakevens = sum(1 for r in rows if r.get("result") == "breakeven")
+    # UNE ENTRÉE SANS RÉSULTAT N'EST PAS UN TRADE PERDU. « 0 % de réussite sur
+    # 1 entrée » s'affichait pour une note « neutre », avant toute clôture :
+    # seules les entrées tranchées (gagné, perdu, à l'équilibre) comptent.
+    decides = [r for r in rows if r.get("result") in ("win", "loss", "breakeven")]
+    total = len(decides)
+    wins = sum(1 for r in decides if r.get("result") == "win")
+    losses = sum(1 for r in decides if r.get("result") == "loss")
+    breakevens = sum(1 for r in decides if r.get("result") == "breakeven")
 
-    pnl_values = [r["pnl"] for r in rows if r.get("pnl") is not None]
-    rr_values   = [r["risk_reward"] for r in rows if r.get("risk_reward") is not None]
+    pnl_values = [r["pnl"] for r in decides if r.get("pnl") is not None]
+    rr_values   = [r["risk_reward"] for r in decides if r.get("risk_reward") is not None]
 
     return {
         "total": total,
+        "entrees": len(rows),
         "wins": wins,
         "losses": losses,
         "breakevens": breakevens,
