@@ -392,6 +392,7 @@ export function AnnotatedChart({
               >
                 <span aria-hidden>{NUMERO[k] ?? ""}</span>
                 {f.nom}
+                {f.statut === "annulee" && <span className="text-[0.78rem]" style={{ color: "var(--cap-ink-3)" }}>(annulée)</span>}
               </button>
             );
           })}
@@ -832,15 +833,31 @@ export function AnnotatedChart({
           {DEFINITION[figureChoisie.cle] && (
             <Text size="caption" className="mt-1.5">{DEFINITION[figureChoisie.cle]}</Text>
           )}
+          {/* CE QU'ELLE EST DEVENUE, AU PRÉSENT. Le serveur relit les bougies
+              qui ont suivi la figure : annulée, objectif atteint, ou encore en
+              cours. Une règle d'annulation écrite au futur sous un cours qui
+              l'a déjà franchie se lisait comme une figure active. */}
           <p className="mt-1.5 text-[0.84rem]" style={{ color: "var(--cap-ink-2)" }}>
-            Elle annonce une <strong style={{ color: couleurFig }}>
-              {figureChoisie.sens === "haussier" ? "hausse" : "baisse"}
-            </strong>
-            {figureChoisie.objectif != null ? <> vers <strong>{format(figureChoisie.objectif)}</strong></> : null}
-            {figureChoisie.invalidation != null
-              ? <>, et elle est annulée {figureChoisie.sens === "haussier" ? "sous" : "au-dessus de"}{" "}
-                  <strong>{format(figureChoisie.invalidation)}</strong></>
-              : null}.
+            {figureChoisie.statut === "annulee" ? (
+              <>Elle annonçait une {figureChoisie.sens === "haussier" ? "hausse" : "baisse"}
+                {figureChoisie.objectif != null ? <> vers {format(figureChoisie.objectif)}</> : null}.{" "}
+                <strong style={{ color: "var(--cap-down)" }}>Elle est annulée</strong> : le prix est
+                {figureChoisie.sens === "haussier" ? " repassé sous " : " repassé au-dessus de "}
+                {figureChoisie.invalidation != null ? format(figureChoisie.invalidation) : "son niveau d'annulation"} depuis.</>
+            ) : figureChoisie.statut === "objectif_atteint" ? (
+              <>Elle annonçait une {figureChoisie.sens === "haussier" ? "hausse" : "baisse"}
+                {figureChoisie.objectif != null ? <> vers {format(figureChoisie.objectif)}</> : null}, et{" "}
+                <strong style={{ color: couleurFig }}>l&apos;objectif a été atteint</strong> depuis.</>
+            ) : (
+              <>Elle annonce une <strong style={{ color: couleurFig }}>
+                  {figureChoisie.sens === "haussier" ? "hausse" : "baisse"}
+                </strong>
+                {figureChoisie.objectif != null ? <> vers <strong>{format(figureChoisie.objectif)}</strong></> : null}
+                {figureChoisie.invalidation != null
+                  ? <>, et elle est annulée {figureChoisie.sens === "haussier" ? "sous" : "au-dessus de"}{" "}
+                      <strong>{format(figureChoisie.invalidation)}</strong></>
+                  : null}.</>
+            )}
           </p>
           <p className="mt-1.5 text-[0.84rem]" style={{ color: "var(--cap-ink-2)" }}>
             {figureChoisie.verdict.phrase.split(/(?<=\.)\s/)[0]}{" "}

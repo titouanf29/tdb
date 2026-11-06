@@ -1151,7 +1151,9 @@ function PropositionNimbo({
   onPasserEnSwing?: () => void;
 }) {
   const nom = a.company?.name || a.symbol;
-  const plan = a.risk?.suggested_sl != null && a.risk?.suggested_tp != null ? a.risk : null;
+  // Un plan dégénéré (objectif qui passerait sous zéro en mensuel, actif sans
+  // cotation) n'est pas montré : une ligne absurde disqualifie toute la page.
+  const plan = a.risk?.suggested_sl != null && a.risk?.suggested_tp != null && !a.risk.degenere ? a.risk : null;
   const blocage = a.tradeability?.blockers?.[0];
   // L'intraday, mesuré sans avantage après frais : Nimbo ne propose rien et
   // le dit sans détour — la raison n'est pas CET actif, c'est l'horizon.
@@ -1317,7 +1319,7 @@ function PropositionNimbo({
                     le calcul change, revenez voir.
                   </>
               : blocage
-                ? <>{blocage}.</>
+                ? <>{blocage.replace(/\.\s*$/, "")}.</>
                 : "Le moteur ne voit pas de plan assez net."}
           </Text>
           {/* Quand revenir : calculé par le serveur (_revoir.py), la même

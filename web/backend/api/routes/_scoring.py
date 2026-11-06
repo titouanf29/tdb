@@ -108,8 +108,18 @@ def plan_structurel(prix: float, atr: float, support: float, resistance: float,
     if not obstacle:
         tp_structure = tp
     plafonne = obstacle and plafonner
+    # UN PLAN QUI PASSE SOUS ZÉRO N'EST PAS UN PLAN. En mensuel, l'ATR d'une
+    # action volatile multiplié par l'objectif dépasse parfois le cours
+    # lui-même : l'écran affichait « Objectif −3,292 € » sur LVMH à 408 €, et
+    # un visiteur qui lit une ligne absurde ne croit plus les autres. Un
+    # niveau qui tomberait sous 10 % du cours est ramené à ce plancher et le
+    # plan est marqué dégénéré : l'écran ne le montre pas, il le dit.
+    plancher = prix * 0.1
+    degenere = atr <= 0 or sl <= plancher or tp <= plancher or tp_structure <= plancher or abs(tp - sl) < 1e-9
+    sl, tp, tp_structure = max(sl, plancher), max(tp, plancher), max(tp_structure, plancher)
     return {"sl": sl, "tp": tp_structure if plafonne else tp, "sl_basis": base,
-            "tp_capped": plafonne, "obstacle": obstacle, "tp_structure": tp_structure}
+            "tp_capped": plafonne, "obstacle": obstacle, "tp_structure": tp_structure,
+            "degenere": bool(degenere)}
 
 
 _JOURS_FIXES = {"1d": 1.0, "3d": 3 * 5 / 7, "1w": 5.0, "1mo": 21.0}

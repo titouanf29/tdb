@@ -992,6 +992,8 @@ export interface Figure {
   cle: string;
   nom: string;
   sens: "haussier" | "baissier";
+  /** Ce que la figure est devenue depuis sa confirmation (bougies suivantes). */
+  statut?: "en_cours" | "annulee" | "objectif_atteint";
   points: { i: number; prix: number; ts: number }[];
   /** La ligne de cou, la base ou la borne cassée. */
   ligne: { i1: number; p1: number; i2: number; p2: number; ts1: number; ts2: number } | null;
@@ -1525,6 +1527,9 @@ export interface Analysis {
     /** Vrai quand le plan n'est qu'un exemple (verdict neutre, ou vente à
      *  découvert que l'historique n'a pas validée) : il ne s'ouvre pas. */
     illustratif?: boolean;
+    /** Vrai quand les niveaux n'ont pas de sens (multiple d'ATR au-delà du
+     *  cours, actif sans cotation) : l'écran ne montre pas le plan. */
+    degenere?: boolean;
     direction?: "LONG" | "SHORT";
     sl_basis?: string;
     tp_capped_at_level?: boolean;

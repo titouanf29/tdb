@@ -116,25 +116,35 @@ export function readStructure(bars: Bar[]): Structure {
   const higherLows = l1.price > l0.price;
   const lowerHighs = h1.price < h0.price;
   const lowerLows = l1.price < l0.price;
+  // LA RÈGLE, APPLIQUÉE AU PRÉSENT. « Elle cesse d'être vraie si le prix
+  // repasse sous 208,93 » s'affichait sous un cours à 187,59 : la règle était
+  // écrite au futur, jamais confrontée à la dernière bougie.
+  const dernier = bars[bars.length - 1]?.close;
 
   if (higherHighs && higherLows) {
+    const rompue = dernier != null && dernier < l1.price;
     return {
       kind: "up",
       swings,
       invalidation: l1.price,
-      sentence:
-        `Sommets et creux de plus en plus hauts : structure haussière. ` +
-        `Elle cesse d'être vraie si le prix repasse sous ${fmt(l1.price)}, le dernier creux.`,
+      sentence: rompue
+        ? `Sommets et creux de plus en plus hauts, mais la structure haussière est ROMPUE : ` +
+          `le prix est repassé sous ${fmt(l1.price)}, le dernier creux.`
+        : `Sommets et creux de plus en plus hauts : structure haussière. ` +
+          `Elle cesse d'être vraie si le prix repasse sous ${fmt(l1.price)}, le dernier creux.`,
     };
   }
   if (lowerHighs && lowerLows) {
+    const rompue = dernier != null && dernier > h1.price;
     return {
       kind: "down",
       swings,
       invalidation: h1.price,
-      sentence:
-        `Sommets et creux de plus en plus bas : structure baissière. ` +
-        `Elle cesse d'être vraie si le prix repasse au-dessus de ${fmt(h1.price)}, le dernier sommet.`,
+      sentence: rompue
+        ? `Sommets et creux de plus en plus bas, mais la structure baissière est ROMPUE : ` +
+          `le prix est repassé au-dessus de ${fmt(h1.price)}, le dernier sommet.`
+        : `Sommets et creux de plus en plus bas : structure baissière. ` +
+          `Elle cesse d'être vraie si le prix repasse au-dessus de ${fmt(h1.price)}, le dernier sommet.`,
     };
   }
 
