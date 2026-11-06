@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from "react";
 import type { ActionResult } from "./api";
 
 /**
@@ -17,11 +18,43 @@ export interface Reussite {
 
 export const EVENEMENT_REUSSITE = "tdb-reussite";
 
+/**
+ * Les cartes se coupent, par appareil, dans les réglages. Un lecteur qui
+ * voulait qu'on lui parle du risque comme à un adulte n'a pas envie qu'un
+ * badge tombe à chaque clic. Les points continuent de compter ; seules les
+ * cartes se taisent.
+ */
+export const CLE_FELICITATIONS = "tdb_felicitations";
+export const EVENEMENT_FELICITATIONS = "tdb-felicitations";
+
+export function felicitationsActives(): boolean {
+  try { return localStorage.getItem(CLE_FELICITATIONS) !== "off"; } catch { return true; }
+}
+
+export function reglerFelicitations(actives: boolean) {
+  try { localStorage.setItem(CLE_FELICITATIONS, actives ? "on" : "off"); } catch { /* navigation privée */ }
+  window.dispatchEvent(new Event(EVENEMENT_FELICITATIONS));
+}
+
+/** Pour les réglages : l'état, et de quoi le changer. */
+export function useFelicitations(): [boolean, (v: boolean) => void] {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    const lire = () => setOn(felicitationsActives());
+    lire();
+    window.addEventListener(EVENEMENT_FELICITATIONS, lire);
+    return () => window.removeEventListener(EVENEMENT_FELICITATIONS, lire);
+  }, []);
+  const set = useCallback((v: boolean) => reglerFelicitations(v), []);
+  return [on, set];
+}
+
 const enAttente: Reussite[] = [];
 let hoteMonte = false;
 
 export function annoncerReussite(r: Reussite) {
   if (typeof window === "undefined") return;
+  if (!felicitationsActives()) return;
   if (!hoteMonte) {
     enAttente.push(r);
     return;

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
 import { FaconDeTrader } from "@/components/dashboard/FaconDeTrader";
 import { Intention } from "@/components/dashboard/Intention";
+import { ProchaineLecon } from "@/components/dashboard/ProchaineLecon";
 import { lundiAPreparer, weekendOuvert } from "@/lib/semaine";
 import { useAuth } from "@/lib/AuthContext";
 import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
@@ -288,8 +289,9 @@ export default function DashboardPage() {
                         // ouvrir une nouvelle : cliquer sur ce qu'on possède
                         // déjà proposait d'acheter autre chose.
                         href="/wallet"
-                        label={p.symbol}
-                        sub={`${p.direction === "LONG" ? "Achat" : "Vente"} · ${money(p.amount)}`}
+                        // Le nom, le code en second : « LVMH » se lit, « MC.PA » se décode.
+                        label={p.name || p.symbol}
+                        sub={`${p.name ? `${p.symbol} · ` : ""}${p.direction === "LONG" ? "Achat" : "Vente"} · ${money(p.amount)}`}
                         change={
                           p.unrealized_pnl != null && p.amount
                             ? (p.unrealized_pnl / p.amount) * 100
@@ -322,7 +324,8 @@ export default function DashboardPage() {
                     <DataRow
                       key={f.symbol}
                       href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
-                      label={f.symbol}
+                      label={f.name || f.symbol}
+                      sub={f.name && f.name !== f.symbol ? f.symbol : undefined}
                       value={formatCours(f.price, f.symbol)}
                       change={f.change}
                     />
@@ -373,28 +376,10 @@ export default function DashboardPage() {
         <Reveal delay={0.16} className={goal === "comprendre" || (positions.length === 0 && (stats?.total_trades ?? 0) === 0) ? "order-first" : ""}>
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <ParcoursNimbo aUnePosition={positions.length > 0 || (stats?.total_trades ?? 0) > 0} />
-            <Panel
-              title="Continuer le parcours"
-              hint="Court, concret, et toujours reprenable là où vous l'avez laissé."
-              action={{ label: "Ouvrir le parcours", href: "/learn" }}
-            >
-              <Text size="small">
-                Les bases, puis les indicateurs, puis la gestion du risque,
-                dans cet ordre, parce que chacun n&apos;a de sens qu&apos;avec
-                le précédent.
-              </Text>
-              <div className="cap-liste mt-4 flex flex-wrap gap-2">
-                {["Lire un graphique", "Tendance et momentum", "Dimensionner une position"].map((c) => (
-                  <span
-                    key={c}
-                    className="cap-puce rounded-[9px] px-2.5 py-1.5 text-[0.8rem]"
-                    style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink-2)" }}
-                  >
-                    {c}
-                  </span>
-                ))}
-              </div>
-            </Panel>
+            {/* La prochaine leçon par son nom, pas une description du
+                parcours : c'est ce qu'on lit le soir pour savoir quoi faire
+                en dix minutes. */}
+            <ProchaineLecon />
           </div>
         </Reveal>
       </div>
