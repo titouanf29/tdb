@@ -18,6 +18,7 @@ import { useUserLevel } from "@/hooks/useUserLevel";
 import { useProfile } from "@/lib/useProfile";
 import { Intentions } from "@/components/analysis/Intentions";
 import { PourVous } from "@/components/analysis/PourVous";
+import { DepuisLecture } from "@/components/analysis/DepuisLecture";
 import {
   buildReasons, directionLabel, edgeSentence, scenarioSentence, tendanceExpliquee,
 } from "@/lib/explain";
@@ -1047,6 +1048,8 @@ function Verdict({
             {tendanceExpliquee(a, assetPrice) && (
               <Text size="small" className="mt-1 max-w-[36rem]">{tendanceExpliquee(a, assetPrice)}</Text>
             )}
+            {/* Ce qui a bougé depuis la dernière lecture, un autre jour. */}
+            <DepuisLecture a={a} score={Math.round(a.profile_score?.total ?? a.score.total)} />
           </div>
         </div>
 
