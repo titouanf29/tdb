@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 import { annoncerReussite } from "@/lib/reussite";
 import { symboleCotation } from "@/lib/devise";
+import { useAuth } from "@/lib/AuthContext";
 import { RISQUE, niveauRisque } from "@/lib/risque";
 // `fr` : la virgule décimale. « 0.4 % » et « 6.6689 » dans un écran français
 // sont la faute qui revient le plus souvent dès qu'un nombre est affiché.
@@ -106,11 +107,24 @@ export default function TradingPage() {
   }, [isLoaded, settings.orderMode]);
 
   // Un turbo ×1 n'existe pas : le levier par défaut d'un achat comptant est
-  // remplacé par ×5 en passant au turbo — jamais pendant la saisie.
+  // remplacé par ×5 en passant au turbo — jamais pendant la saisie. ET IL
+  // REVIENT EN QUITTANT LE TURBO : le ×5 du turbo restait dans « Montant ×
+  // levier », et un visiteur réglé sur ×1 a ouvert une position ×5 sans
+  // l'avoir voulu. Le levier qu'on n'a pas touché reprend celui des réglages.
   useEffect(() => {
     if (turbo) setLeverage((l) => (l < TURBO_LEVIER_MINI ? 5 : l));
+    else if (!leverageTouched.current) setLeverage(Math.max(1, Math.round(Number(settings.defaultLeverage) || 1)));
     else setLeverage((l) => Math.max(1, Math.round(l)));
-  }, [turbo]);
+  }, [turbo, settings.defaultLeverage]);
+
+  // LE MODE SIMPLE. Quelqu'un qui a dit « je débute » voulait acheter pour
+  // 500 € d'une action pour de faux, et l'écran lui parlait de levier, de
+  // turbo, de CFD et de courtier. Ces réglages restent, repliés sous
+  // « Options avancées » ; dépliés d'office pour qui s'y connaît.
+  const { user } = useAuth();
+  const [avance, setAvance] = useState<boolean | null>(null);
+  const optionsAvancees = avance ?? (user?.trading_level != null && user.trading_level !== "beginner");
+
 
   const fallbackLevels = (px: number, dir: "LONG" | "SHORT") => ({
     tp: Math.round((dir === "LONG" ? px * 1.05 : px * 0.95) * 100) / 100,
@@ -236,6 +250,21 @@ export default function TradingPage() {
   // Stop et objectif se saisissent dans la devise de cotation : on la dit.
   const deviseSaisie = symboleCotation(symbol) ? ` (en ${symboleCotation(symbol)})` : "";
 
+  // LES NIVEAUX SE VÉRIFIENT À LA SAISIE. Un stop au-dessus du prix sur un
+  // achat passait le calcul de taille sans un mot, puis le serveur le
+  // refusait au clic, et son message restait affiché une fois corrigé.
+  const erreurStop = useSL && stopLoss != null && price > 0
+    ? (direction === "LONG" && stopLoss >= price ? `Sur un achat, le stop se place sous le prix d'entrée (${assetPrice(price)}).`
+      : direction === "SHORT" && stopLoss <= price ? `Sur une vente, le stop se place au-dessus du prix d'entrée (${assetPrice(price)}).`
+      : null)
+    : null;
+  const erreurObjectif = useTP && takeProfit != null && price > 0
+    ? (direction === "LONG" && takeProfit <= price ? `Sur un achat, l'objectif se place au-dessus du prix d'entrée (${assetPrice(price)}).`
+      : direction === "SHORT" && takeProfit >= price ? `Sur une vente, l'objectif se place sous le prix d'entrée (${assetPrice(price)}).`
+      : null)
+    : null;
+  useEffect(() => { setError(""); }, [stopLoss, takeProfit, amount, leverage, direction, symbol]);
+
   const money = useCallback(
     (v: number) =>
       convertCurrency(v, "EUR", settings.currency, eurUsd).toLocaleString("fr-FR", {
@@ -261,6 +290,8 @@ export default function TradingPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quote || price <= 0) return setError(quoteError || "Choisissez un actif valide.");
+    if (erreurStop) return setError(erreurStop);
+    if (erreurObjectif) return setError(erreurObjectif);
     if (totalDebite > (balance?.balance ?? 0)) return setError("Solde insuffisant.");
     if (turbo) {
       if (!devis) return setError(devisError || "Le turbo n'est pas encore calculé.");
@@ -287,6 +318,10 @@ export default function TradingPage() {
         : `Position ouverte à ${assetPrice(r.entry_price || price)}.`;
       setSuccess(fait);
       setOuverte({ symbole: symbol.toUpperCase(), sens: direction, prix: r.entry_price || price });
+      // La confirmation prend la place du formulaire, en haut : elle était
+      // tout en bas, derrière les bulles, et deux visiteurs ont cru que
+      // l'ordre avait échoué.
+      setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
       // La page ne part plus d'elle-même vers le portefeuille : la personne
       // choisit la suite (le wallet, le journal, ou une autre position).
       annoncerReussite({
@@ -415,7 +450,7 @@ export default function TradingPage() {
                   Stop de protection
                 </Checkbox>
                 {useSL && (
-                  <Field label={`Prix du stop${deviseSaisie}`} htmlFor="tr-sl">
+                  <Field label={`Prix du stop${deviseSaisie}`} htmlFor="tr-sl" error={erreurStop ?? undefined}>
                     <SaisieNombre
                       id="tr-sl"
                       value={stopLoss}
@@ -433,7 +468,7 @@ export default function TradingPage() {
                   Objectif de gain
                 </Checkbox>
                 {useTP && (
-                  <Field label={`Prix de l'objectif${deviseSaisie}`} htmlFor="tr-tp">
+                  <Field label={`Prix de l'objectif${deviseSaisie}`} htmlFor="tr-tp" error={erreurObjectif ?? undefined}>
                     <SaisieNombre
                       id="tr-tp"
                       value={takeProfit}
@@ -461,7 +496,14 @@ export default function TradingPage() {
               }
             >
               <div className="space-y-5">
-                <div>
+                {!optionsAvancees && (
+                  <Text size="caption">
+                    Achat simple, sans levier{settings.broker !== "none" ? `, chez ${BROKER_PRESETS[settings.broker].label}` : ""}.{" "}
+                    <button type="button" onClick={() => setAvance(true)} className="cap-lien">Options avancées</button>
+                    {" "}(produit, levier, courtier).
+                  </Text>
+                )}
+                {optionsAvancees && <div>
                   <span className="mb-1.5 block text-[0.85rem] font-medium" style={{ color: "var(--cap-ink)" }}>
                     Produit
                   </span>
@@ -486,7 +528,7 @@ export default function TradingPage() {
                     {" · "}
                     <Link href="/settings?section=trading" className="underline underline-offset-2">Mon courtier</Link>
                   </Text>
-                </div>
+                </div>}
 
                 <Checkbox checked={sizingOn} onChange={setSizingOn}>
                   Calculer la taille à partir de mon risque
@@ -537,7 +579,7 @@ export default function TradingPage() {
                   />
                 </Field>
 
-                <Field
+                {optionsAvancees && <Field
                   label={turbo ? "Levier du turbo" : "Levier"}
                   htmlFor="tr-lev"
                   hint={turbo
@@ -562,7 +604,7 @@ export default function TradingPage() {
                       return borne;
                     }}
                   />
-                </Field>
+                </Field>}
 
                 {turbo && (
                   <Field
@@ -692,10 +734,23 @@ export default function TradingPage() {
               </div>
             )}
 
+            {/* CE QUI VA SE PASSER, EN UNE PHRASE, AVANT LE BOUTON. Le levier
+                et l'exposition se lisaient dans un tableau au-dessus ; un
+                visiteur a ouvert ×5 sans l'avoir vu. Ici, le bouton le dit. */}
+            {!success && quote && price > 0 && (
+              <Text size="small" tone="ink">
+                Vous allez {direction === "LONG" ? "acheter" : "vendre"} {symbol.toUpperCase()} pour{" "}
+                {money(turbo ? coutTitres : amount)}
+                {!turbo && leverage > 1 && <>, avec un levier ×{leverage} (exposition {money(exposition)})</>}
+                {turbo && <> en turbo ×{fr(levierTurbo, 1)}</>}
+                {useSL && stopLoss != null && !erreurStop && <>, stop à {assetPrice(stopLoss)}</>}
+                {useTP && takeProfit != null && !erreurObjectif && <>, objectif à {assetPrice(takeProfit)}</>}.
+              </Text>
+            )}
             {!success && <Button
               type="submit"
               size="lg"
-              disabled={submitting || !quote || price <= 0}
+              disabled={submitting || !quote || price <= 0 || !!erreurStop || !!erreurObjectif}
               className="w-full"
             >
               {submitting ? (
@@ -706,7 +761,7 @@ export default function TradingPage() {
               ) : (
                 turbo
                   ? `Acheter ${unites} titre${unites > 1 ? "s" : ""} · turbo ${direction === "LONG" ? "long" : "short"}`
-                  : `Ouvrir la position ${direction === "LONG" ? "à l'achat" : "à la vente"}`
+                  : `${direction === "LONG" ? "Acheter" : "Vendre"} pour ${money(amount)}${leverage > 1 ? ` · levier ×${leverage}` : ""}`
               )}
             </Button>}
           </div>

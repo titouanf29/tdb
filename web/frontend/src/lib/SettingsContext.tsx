@@ -38,9 +38,13 @@ export type OrderMode = typeof ORDER_MODES[number];
  *  ordre chez lui. Les frais sont des ordres de grandeur publics, modifiables. */
 export const BROKER_PRESETS: Record<Broker, { label: string; mode: OrderMode; fee: string; note: string }> = {
   none:           { label: "Aucun en particulier", mode: "cfd",   fee: "0",    note: "Montant × levier, sans frais." },
-  trade_republic: { label: "Trade Republic",       mode: "turbo", fee: "1",    note: "Turbos en titres entiers, 1 € par ordre." },
-  boursorama:     { label: "Boursorama",           mode: "turbo", fee: "1.99", note: "Turbos en titres entiers, frais selon la formule." },
-  degiro:         { label: "DEGIRO",               mode: "turbo", fee: "2",    note: "Turbos en titres entiers, frais selon la bourse." },
+  // LE COURTIER NE CHOISIT PLUS LE PRODUIT. Déclarer Boursorama ouvrait
+  // chaque ordre sur un turbo ×5 : quelqu'un qui achète des actions au
+  // comptant s'est retrouvé avec un levier qu'il n'avait pas choisi. Le
+  // courtier règle les frais ; le turbo se choisit sur l'ordre, à chaque fois.
+  trade_republic: { label: "Trade Republic",       mode: "cfd",   fee: "1",    note: "1 € par ordre. Turbos disponibles, à choisir sur l'ordre." },
+  boursorama:     { label: "Boursorama",           mode: "cfd",   fee: "1.99", note: "Frais selon la formule. Turbos disponibles, à choisir sur l'ordre." },
+  degiro:         { label: "DEGIRO",               mode: "cfd",   fee: "2",    note: "Frais selon la bourse. Turbos disponibles, à choisir sur l'ordre." },
   cfd:            { label: "Courtier CFD (IG, eToro…)", mode: "cfd", fee: "0", note: "Montant × levier, coût dans l'écart." },
   other:          { label: "Autre",                mode: "cfd",   fee: "0",    note: "Réglez le produit et les frais vous-même." },
 };
