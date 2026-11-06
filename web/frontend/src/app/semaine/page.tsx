@@ -1,5 +1,7 @@
 "use client";
 
+import { ilYA } from "@/lib/quand";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, CalendarDays, Loader2, Newspaper, Sparkles } from "lucide-react";
@@ -244,7 +246,7 @@ function Contenu({ d, synthese, syntheseEnCours }: {
 
           {d.positions.length > 0 && (
             <div className="mt-5">
-              <Text size="caption" tone="faint" className="mb-2">Gardées pendant le week-end. La variation est celle de l&apos;actif sur la semaine ; votre résultat est dans le wallet.</Text>
+              <Text size="caption" tone="faint" className="mb-2">Gardées pendant le week-end</Text>
               <ul className="space-y-2">
                 {d.positions.map((p, i) => (
                   <li key={i} className="flex items-baseline justify-between gap-3">
@@ -256,7 +258,13 @@ function Contenu({ d, synthese, syntheseEnCours }: {
                         {p.crypto ? " · cote ce week-end" : ""}
                       </span>
                     </Text>
-                    {p.semaine_pct != null && <Num tone={ton(p.semaine_pct)} className="shrink-0 text-[0.85rem]">{signe(p.semaine_pct)}</Num>}
+                    {/* « −8,80 % » posé nu sur la ligne d'une position à zéro se
+                        lisait comme son résultat. C'est l'actif, sur la semaine. */}
+                    {p.semaine_pct != null && (
+                      <Text size="caption" as="span" className="shrink-0 text-right">
+                        l&apos;actif <Num tone={ton(p.semaine_pct)} className="text-[0.85rem]">{signe(p.semaine_pct)}</Num> sur la semaine
+                      </Text>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -351,6 +359,8 @@ function Contenu({ d, synthese, syntheseEnCours }: {
                 <Text size="caption" className="mt-1">
                   {n.voix} source{n.voix > 1 ? "s" : ""}
                   {n.voix <= 1 ? ", à confirmer" : ""}
+                  {/* Sans date, « la Fed relève graduellement » ne se situe pas. */}
+                  {n.premiere_vue ? ` · vu ${ilYA(n.premiere_vue)}` : ""}
                   {n.vos_actifs.length > 0 && <> · touche {n.vos_actifs.map((a) => a.nom).join(", ")}</>}
                 </Text>
               </li>

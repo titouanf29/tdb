@@ -203,6 +203,15 @@ export default function DashboardPage() {
           <NextStep intent={intent} positions={positions} favorites={favorites} money={money} />
         </Reveal>
 
+        {/* ── Demain, juste après la prochaine étape ─────────────────────
+            Ce qui attend à la prochaine séance : annonces, plans de Nimbo
+            encore ouverts sur les favoris, positions sans stop. Un visiteur
+            l'a trouvé « le bloc le plus utile de la page, et le dernier » :
+            il passe avant les missions. Il s'efface quand il n'a rien à dire. */}
+        <Reveal delay={0.06}>
+          <Demain />
+        </Reveal>
+
         {/* La série de jours d'affilée et les missions du jour. */}
         <Aujourdhui />
 
@@ -295,7 +304,13 @@ export default function DashboardPage() {
                         href="/wallet"
                         // Le nom, le code en second : « LVMH » se lit, « MC.PA » se décode.
                         label={p.name || p.symbol}
-                        sub={`${p.name ? `${p.symbol} · ` : ""}${p.direction === "LONG" ? "Achat" : "Vente"} · ${money(p.amount)}`}
+                        // « +0,00 % » à côté d'un actif à +3,3 % se lisait comme
+                        // une contradiction : la séance de l'actif est dite ici.
+                        sub={[
+                          p.name ? p.symbol : null,
+                          `${p.direction === "LONG" ? "Achat" : "Vente"} · ${money(p.amount)}`,
+                          p.day_change_percent != null ? `séance ${p.day_change_percent >= 0 ? "+" : ""}${fr(p.day_change_percent, 1)} %` : null,
+                        ].filter(Boolean).join(" · ")}
                         change={
                           p.unrealized_pnl != null && p.amount
                             ? (p.unrealized_pnl / p.amount) * 100
@@ -370,13 +385,6 @@ export default function DashboardPage() {
           <Intention />
         </Reveal>
 
-        {/* ── 4 ter. Demain ──────────────────────────────────────────────
-            Ce qui attend à la prochaine séance : annonces, plans de Nimbo
-            encore ouverts sur les favoris, positions sans stop. Le panneau
-            s'efface quand il n'a rien de particulier à dire. */}
-        <Reveal delay={0.15}>
-          <Demain />
-        </Reveal>
 
         {/* ── 5. Le démarrage guidé et le parcours ─────────────────────── */}
         {/* « Votre premier parcours » monte en tête tant que le compte n'a
@@ -731,7 +739,7 @@ function NextStep({
         </span>
         <span
           className="text-[0.75rem] font-medium uppercase tracking-[0.15em]"
-          style={{ color: "rgba(232,237,241,0.62)" }}
+          style={{ color: "rgba(232,237,241,0.82)" }}
         >
           {suggestion.eyebrow}
         </span>

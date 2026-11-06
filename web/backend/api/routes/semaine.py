@@ -488,7 +488,9 @@ def _a_penser(profil: dict, semaine: dict, ouvertes: list, prix: dict, agenda: d
             "lien": "/wallet",
         })
 
-    actions = [p for p in ouvertes if not _crypto(p["symbol"])]
+    # Seulement les positions QUI ONT un stop : pour les autres, la carte du
+    # dessus dit déjà tout, et deux cartes pour un conseil, c'est une de trop.
+    actions = [p for p in ouvertes if not _crypto(p["symbol"]) and (p.get("stop_loss") is not None or p.get("instrument") == "turbo")]
     if actions:
         out.append({
             "niveau": "conseil",

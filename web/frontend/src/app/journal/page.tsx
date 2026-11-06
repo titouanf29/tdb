@@ -459,6 +459,12 @@ function EntryRow({
               {e.pnl != null && ` · ${e.pnl >= 0 ? "+" : ""}${money(e.pnl)}`}
             </Num>
           )}
+          {/* La ligne écrite à l'ouverture, pas encore fermée. */}
+          {!e.result && e.setup === "ouverture" && !e.exit_time && (
+            <span className="rounded-[6px] px-1.5 py-0.5 text-[0.7rem]" style={{ backgroundColor: "color-mix(in srgb, var(--cap-ocean) 12%, var(--cap-surface))", color: "var(--cap-ocean)" }}>
+              En cours
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1">

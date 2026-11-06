@@ -1232,6 +1232,15 @@ function PropositionNimbo({
 
   const teinte = propose ? "var(--cap-up)" : "var(--cap-amber)";
 
+  // Le stop de la personne, comparé à celui que Nimbo mettrait aujourd'hui.
+  let stopRelatif = "";
+  if (dejaOuverte?.stop_loss != null && plan?.suggested_sl) {
+    let ou = "au niveau";
+    if (dejaOuverte.stop_loss > plan.suggested_sl) ou = "au-dessus";
+    else if (dejaOuverte.stop_loss < plan.suggested_sl) ou = "en dessous";
+    stopRelatif = ` (${ou} du stop que je mettrais aujourd'hui, ${assetPrice(plan.suggested_sl)})`;
+  }
+
   // Le premier parcours (lib/parcours.ts) : l'étape « analyser avec Nimbo »
   // est faite quand son avis a été VU, pas seulement chargé en bas de page.
   const carte = useRef<HTMLElement | null>(null);
@@ -1271,7 +1280,8 @@ function PropositionNimbo({
             <Text size="small" tone="ink" className="mt-1.5">
               Vous avez déjà une position {dejaOuverte.direction === "LONG" ? "à l'achat" : "à la vente"} sur {nom}
               {dejaOuverte.pnl_percent != null ? ` (${dejaOuverte.pnl_percent >= 0 ? "+" : ""}${fr(dejaOuverte.pnl_percent, 1)} % depuis l'entrée)` : ""}
-              {dejaOuverte.stop_loss != null ? `, stop à ${assetPrice(dejaOuverte.stop_loss)}` : ", sans stop"}.{" "}
+              {dejaOuverte.stop_loss != null ? `, stop à ${assetPrice(dejaOuverte.stop_loss)}` : ", sans stop"}
+              {stopRelatif}.{" "}
               <Link href="/wallet" className="underline underline-offset-2">La revoir dans le wallet</Link>.
             </Text>
           )}

@@ -97,7 +97,8 @@ def lire(semaine: dict, activite: dict, ouvertes: int = 0) -> dict:
         morceaux.append("sans analyse ni leçon")
     if activite["serie"] > 1:
         morceaux.append(f"série de {activite['serie']} jours d'affilée")
-    constats.append({"ton": "neutre", "texte": ", ".join(morceaux) + "."})
+    if t:
+        constats.append({"ton": "neutre", "texte": ", ".join(morceaux) + "."})
 
     # Un seul conseil, le plus utile d'abord.
     if t and semaine["sans_stop"]:
