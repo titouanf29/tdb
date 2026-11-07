@@ -21,6 +21,7 @@ from .premium import is_user_premium, get_user_limits
 from ..database import execute_query, execute_write
 from ._prices import fetch_ohlcv, fetch_prices, prewarm_ohlcv
 from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_confidence
+from ._seances import cours_en_direct_utiles
 from ._universe import (EXTRA_CRYPTO, extend_market, classify,
                         resolve_universe, universe_summary,
                         resolve_zones, zones_summary)
@@ -2659,7 +2660,7 @@ async def scan_market(
     live_px: dict = {}
     if not stream:
         try:
-            live_px = await fetch_prices(assets) or {}
+            live_px = (await fetch_prices(assets) or {}) if cours_en_direct_utiles(assets) else {}
         except Exception:
             live_px = {}
 
@@ -2833,12 +2834,20 @@ async def scan_market(
                 "timeframe": timeframe, "min_score": min_score, "seuil_achat": _seuil,
             }) + "\n"
 
-            yield _json.dumps({"type": "phase", "phase": "prices",
-                               "label": "Lecture des cours en direct"}) + "\n"
-            try:
-                live_px.update(await fetch_prices(assets) or {})
-            except Exception:
-                pass
+            # SÉANCES FERMÉES : PAS DE LECTURE EN DIRECT. Un vendredi soir,
+            # dix secondes à lire des cours qui n'ont pas bougé depuis la
+            # clôture, devant un écran à « 0 / 423 ». La dernière clôture est
+            # le cours ; on le dit, et on passe à l'analyse.
+            if cours_en_direct_utiles(assets):
+                yield _json.dumps({"type": "phase", "phase": "prices",
+                                   "label": "Lecture des cours en direct"}) + "\n"
+                try:
+                    live_px.update(await fetch_prices(assets) or {})
+                except Exception:
+                    pass
+            else:
+                yield _json.dumps({"type": "phase", "phase": "prices",
+                                   "label": "Séances fermées : cours de la dernière clôture"}) + "\n"
 
             yield _json.dumps({"type": "phase", "phase": "benchmarks",
                                "label": "Chargement des indices de référence"}) + "\n"

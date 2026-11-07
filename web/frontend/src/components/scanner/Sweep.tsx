@@ -174,7 +174,11 @@ export function Sweep({
       <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
         <Text size="small" tone="ink" as="span">{phase}</Text>
         <Text size="caption" as="span">
-          <span className="cap-num">{traites}</span> / {total}
+          {/* Avant le premier actif analysé, « 0 / 423 » pendant dix secondes
+              se lisait comme un scan figé : on dit ce qui se passe. */}
+          {traites === 0 && enCours
+            ? <>préparation, puis {total} actifs un par un</>
+            : <><span className="cap-num">{traites}</span> / {total}</>}
           {/* Le compteur des retenues saute un peu à chaque nouvelle (la clé
               remonte l'élément, donc rejoue l'animation). */}
           {kept > 0 && <> · <span key={kept} className="cap-num cap-pop inline-block" style={{ color: "var(--cap-up)" }}>{kept}</span> retenue{kept > 1 ? "s" : ""}</>}
