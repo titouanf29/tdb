@@ -3956,6 +3956,8 @@ export interface ResultatStrategie {
     trades: number; taux_gagnants?: number; r_moyen?: number; r_total?: number;
     gain_moyen_r?: number; perte_moyenne_r?: number; facteur_profit?: number | null;
     pire_serie_r?: number; capital_final_pct?: number; baisse_max_pct?: number;
+    /** Le R moyen sur la première et la seconde moitié des trades : la stabilité de l'avantage. */
+    r_moyen_1re_moitie?: number | null; r_moyen_2e_moitie?: number | null;
     issues?: { objectif: number; stop: number; "durée": number }; duree_moyenne?: number;
     achat_conserve_pct?: number;
     courbe?: Array<{ date: string; capital: number; r: number; symbol: string }>;

@@ -1552,7 +1552,7 @@ function DixAchats({ p }: { p: NonNullable<Analysis["probabilites"]> }) {
       <Text size="small" tone="ink" className="mt-2.5">
         <strong style={{ color: "var(--cap-up)" }}>{objectif}</strong> ont atteint l&apos;objectif (en {p.duree_objectif_seances} séances
         environ), <strong style={{ color: "var(--cap-down)" }}>{stop}</strong> ont touché le stop
-        {echeance > 0 && <>, <strong>{echeance}</strong> sont sortis au bout de {p.echeance_seances} séances, {gain} fois sur 10 en gain</>}.
+        {echeance > 0 && <>, <strong>{echeance}</strong> sont sortis au bout de {p.echeance_seances} séances (parmi ces sorties-là, {gain} sur 10 en gain)</>}.
         Le stop sera donc souvent touché : c&apos;est normal. Au total, ces achats ont gagné, parce que l&apos;objectif
         vise bien plus loin que le stop.
       </Text>

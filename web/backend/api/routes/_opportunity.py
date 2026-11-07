@@ -239,18 +239,26 @@ def describe(
     # s'invalide sous sa résistance redevenue plafond, un rebond sous le
     # support qu'il teste.
     bits: list[str] = []
+    # UN NIVEAU À PLUS DE 20 % NE SERT À RIEN. « Au-dessus de 235 le scénario
+    # baissier tombe » pour un cours à 130 : un lecteur l'a relevé, à raison.
+    # Un repère si loin n'annule ni ne confirme rien d'utile ; on le tait.
+    def _proche(niveau) -> bool:
+        try:
+            return bool(niveau) and price > 0 and abs(float(niveau) - price) / price <= 0.20
+        except (TypeError, ValueError):
+            return False
     if baissier:
-        if support:
+        if support and _proche(support):
             bits.append(f"À la baisse, ça se confirme sous {_fmt(support)}")
-        if resistance:
+        if resistance and _proche(resistance):
             bits.append(f"au-dessus de {_fmt(resistance)} le scénario baissier tombe")
-    elif family == "cassure" and resistance:
+    elif family == "cassure" and resistance and _proche(resistance):
         bits.append(f"Ça se confirme au-dessus de {_fmt(resistance)}")
-        if support:
+        if support and _proche(support):
             bits.append(f"sous {_fmt(support)} le scénario tombe")
-    elif family == "rebond" and support:
+    elif family == "rebond" and support and _proche(support):
         bits.append(f"Le support à {_fmt(support)} est le niveau à tenir")
-        if resistance:
+        if resistance and _proche(resistance):
             bits.append(f"au-dessus de {_fmt(resistance)} la reprise est confirmée")
     elif ema20:
         bits.append(

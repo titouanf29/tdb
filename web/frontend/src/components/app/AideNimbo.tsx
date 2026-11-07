@@ -62,6 +62,9 @@ export function AideNimbo() {
     // message de confirmation, et deux visiteuses l'ont dit. Le bouton
     // Nimbo reste ; l'aide est à un geste.
     if (window.innerWidth < 640) return;
+    // Ni sur la stratégie ni sur le scanner : la bulle s'ouvrait par-dessus
+    // les résultats qu'on était en train de lire.
+    if (["/strategie", "/scanner"].some((p) => pathname.startsWith(p))) return;
     const t = setTimeout(() => {
       setIndice(true);
       try { localStorage.setItem(CLE_VUE, "1"); } catch { /* navigation privée */ }
