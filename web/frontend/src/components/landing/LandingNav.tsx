@@ -25,6 +25,12 @@ const LINKS = [
 export function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  // Une inscrite qui tape l'adresse tombe sur la page de vente : au moins,
+  // le bouton la ramène chez elle.
+  const [connecte, setConnecte] = useState(false);
+  useEffect(() => {
+    try { setConnecte(!!localStorage.getItem("tdb_token")); } catch { /* navigation privée */ }
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -66,8 +72,14 @@ export function LandingNav() {
           </nav>
 
           <div className="hidden items-center gap-2 md:flex">
-            <Button href="/login" variant="quiet" size="sm">Connexion</Button>
-            <Button href="/register" size="sm">Commencer</Button>
+            {connecte ? (
+              <Button href="/dashboard" size="sm">Mon espace</Button>
+            ) : (
+              <>
+                <Button href="/login" variant="quiet" size="sm">Connexion</Button>
+                <Button href="/register" size="sm">Commencer</Button>
+              </>
+            )}
           </div>
 
           <button
@@ -106,8 +118,14 @@ export function LandingNav() {
                   </a>
                 ))}
                 <div className="flex gap-2 pt-5">
-                  <Button href="/login" variant="secondary" size="md" className="flex-1">Connexion</Button>
-                  <Button href="/register" size="md" className="flex-1">Commencer</Button>
+                  {connecte ? (
+                    <Button href="/dashboard" size="md" className="flex-1">Mon espace</Button>
+                  ) : (
+                    <>
+                      <Button href="/login" variant="secondary" size="md" className="flex-1">Connexion</Button>
+                      <Button href="/register" size="md" className="flex-1">Commencer</Button>
+                    </>
+                  )}
                 </div>
               </nav>
             </Container>

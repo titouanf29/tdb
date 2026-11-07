@@ -261,6 +261,16 @@ export function PositionSheet({
           Revoir l&apos;analyse de {p.name || getAssetName(p.symbol)}
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
+        {/* La leçon qui explique les mots de cette fiche, à portée de main :
+            une lectrice venait de la lire et cherchait le chemin inverse. */}
+        <Link
+          href="/lecon/7"
+          className="mt-2 inline-flex items-center gap-1.5 text-[0.85rem]"
+          style={{ color: "var(--cap-ocean)" }}
+        >
+          Comprendre le stop et l&apos;objectif (leçon, 14 min)
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
     </Drawer>
   );

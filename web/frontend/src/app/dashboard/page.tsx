@@ -396,7 +396,7 @@ export default function DashboardPage() {
             {/* La prochaine leçon par son nom, pas une description du
                 parcours : c'est ce qu'on lit le soir pour savoir quoi faire
                 en dix minutes. */}
-            <ProchaineLecon />
+            <ProchaineLecon aUnePosition={positions.length > 0} />
           </div>
         </Reveal>
       </div>
@@ -772,6 +772,13 @@ function NextStep({
           {suggestion.cta}
           <ArrowRight className="cap-fleche h-4 w-4 transition-transform group-hover:translate-x-1" style={{ color: "var(--cap-amber-ink)" }} />
         </Link>
+        {/* « À 4,6 % de son stop » : le mot mène à la leçon qui l'explique. */}
+        {positions.length > 0 && (
+          <Link href="/lecon/7" className="ml-4 inline-flex items-center gap-1.5 text-[0.85rem] underline underline-offset-[5px]"
+            style={{ color: "rgba(232,237,241,0.78)", textDecorationColor: "rgba(232,237,241,0.35)" }}>
+            Le stop et l&apos;objectif, expliqués en 14 min
+          </Link>
+        )}
       </div>
     </section>
   );

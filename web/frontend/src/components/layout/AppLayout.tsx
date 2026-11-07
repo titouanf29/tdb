@@ -8,6 +8,7 @@ import { usePremium } from "@/lib/PremiumContext";
 import { WelcomeDialog, cleFermeture } from "@/components/onboarding/WelcomeDialog";
 import { MaintenanceScreen } from "./MaintenanceScreen";
 import { useMaintenance } from "@/lib/useMaintenance";
+import { useProfile } from "@/lib/useProfile";
 import { AppChrome } from "@/components/app/AppChrome";
 import { CoursChrome } from "@/components/cours/CoursChrome";
 import { Loader2 } from "lucide-react";
@@ -114,8 +115,11 @@ function AuthShell({
   // has already waved it away once. Sans niveau le site se comporte comme
   // pour un débutant, ce qui est le réglage le plus explicatif ; reposer la
   // question à chaque chargement transformerait une invitation en harcèlement.
+  // Fermée ou terminée sur un autre appareil : le compte s'en souvient.
+  const { profile: profilBienvenue, loaded: profilCharge } = useProfile();
   useEffect(() => {
     if (!isAuthenticated || !user || user.trading_level != null) return;
+    if (!profilCharge || profilBienvenue.bienvenue_vue) return;
     // Seulement pour un compte neuf : un ancien compte qui l'avait fermée
     // (quand la fermeture était retenue par navigateur) ne la revoit pas.
     const cree = user.created_at ? Date.parse(user.created_at) : Number.NaN;
@@ -125,7 +129,7 @@ function AuthShell({
     if (dismissed) return;
     const t = setTimeout(() => setShowOnboarding(true), 800);
     return () => clearTimeout(t);
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, profilCharge, profilBienvenue.bienvenue_vue]);
 
   // La visite du jour (missions, série) est signalée par AppChrome, qui
   // couvre aussi les leçons ouvertes directement.

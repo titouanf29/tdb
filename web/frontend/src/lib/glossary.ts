@@ -81,9 +81,68 @@ const EXTRA_TERMS: Record<string, TooltipDefinition> = {
   },
 };
 
-export const ALL_TERMS: Record<string, TooltipDefinition> = {
+/**
+ * Les clés des infobulles sont des identifiants de code (« stopLoss ») ; ici
+ * on affiche un nom (« Stop loss »). Et chaque terme mène à la leçon qui
+ * l'explique vraiment, pas à la liste générale.
+ */
+const LIBELLES: Record<string, string> = {
+  RSI: "RSI",
+  MACD: "MACD",
+  EMA: "Moyenne mobile (EMA)",
+  support: "Support",
+  resistance: "Résistance",
+  stopLoss: "Stop loss",
+  takeProfit: "Take profit (objectif)",
+  Bollinger: "Bandes de Bollinger",
+  Stochastique: "Stochastique",
+  ATR: "ATR (amplitude moyenne)",
+  Ichimoku: "Ichimoku",
+};
+
+const LECONS: Record<string, string> = {
+  RSI: "/lecon/4",
+  MACD: "/lecon/8",
+  EMA: "/lecon/6",
+  support: "/lecon/33",
+  resistance: "/lecon/33",
+  stopLoss: "/lecon/7",
+  takeProfit: "/lecon/7",
+  Bollinger: "/lecon/9",
+  ATR: "/lecon/7",
+  "Chandelier japonais": "/lecon/3",
+  Volume: "/lecon/37",
+  Tendance: "/lecon/28",
+  Levier: "/lecon/18",
+  "Swing Trading": "/lecon/2",
+  Scalping: "/lecon/2",
+  "Day Trading": "/lecon/2",
+  "R/R (Risk/Reward)": "/lecon/7",
+  Liquidité: "/lecon/16",
+  PnL: "/lecon/23",
+};
+
+/** Les exemples « simples » qui ne l'étaient pas : SL, 60k, 3.3 avec un point. */
+const EXEMPLES: Record<string, string> = {
+  stopLoss: "Achat à 60 000 $, stop à 58 000 $ : au pire, vous perdez 3,3 % de la somme engagée.",
+  takeProfit: "Achat à 60 000 $, objectif à 64 000 $ : la position se ferme toute seule avec 6,7 % de gain.",
+};
+
+function nommer(termes: Record<string, TooltipDefinition>): Record<string, TooltipDefinition> {
+  const out: Record<string, TooltipDefinition> = {};
+  for (const [cle, def] of Object.entries(termes)) {
+    out[LIBELLES[cle] ?? cle] = {
+      ...def,
+      example: EXEMPLES[cle] ?? def.example,
+      learnLink: LECONS[cle] ?? def.learnLink,
+    };
+  }
+  return out;
+}
+
+export const ALL_TERMS: Record<string, TooltipDefinition> = nommer({
   ...TRADING_TOOLTIPS,
   ...EXTRA_TERMS,
-};
+});
 
 export type { TooltipDefinition };

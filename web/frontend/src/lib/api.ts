@@ -310,6 +310,8 @@ export interface ProfilePreferences {
   /** court | moyen | long — le rythme proposé au Parcours. */
   weekly_time: string | null;
   updated_at?: string | null;
+  /** Quand la fenêtre de bienvenue a été fermée ou terminée, sur n'importe quel appareil. */
+  bienvenue_vue?: string | null;
 
   // ── Les intentions ──────────────────────────────────────────────────────
   // Les trois champs ci-dessus orientent des écrans. Ceux-ci entrent dans le

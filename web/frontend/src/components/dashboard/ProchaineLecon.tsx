@@ -28,31 +28,43 @@ interface Piste {
   prochaine: { titre: string; contexte: string; duree: string; href: string } | null;
 }
 
-function pistes(records: Record<string, LessonRecord>): Piste[] {
-  const parcours = LEARN_MODULES.flatMap((m) => m.lessons.map((l) => ({ m, l, cle: `${m.id}/${l.id}` })));
-  const pFaites = parcours.filter((x) => records[x.cle]);
-  const pNext = parcours.find((x) => !records[x.cle]);
+/** La leçon « Gérer son risque » : le stop, l'objectif, le rapport gain / risque. */
+const LECON_RISQUE = 7;
 
+function pistes(records: Record<string, LessonRecord>, aUnePosition: boolean): Piste[] {
   const serie = ORDRE.map((n) => ({ n, cle: `${MODULE_SERIE}/${cleLecon(n)}` }));
   const sFaites = serie.filter((x) => records[x.cle]);
-  const sNext = serie.find((x) => !records[x.cle]);
+  // PARTIR DE CE QUE LA PERSONNE POSSÈDE. Avec une position ouverte, la
+  // question du soir est « c'est quoi mon stop », pas « les sessions de
+  // Tokyo » : la leçon du risque passe devant, tant qu'elle n'est pas lue.
+  const risque = serie.find((x) => x.n === LECON_RISQUE);
+  const sNext = aUnePosition && risque && !records[risque.cle] ? risque : serie.find((x) => !records[x.cle]);
   const sFiche = sNext ? fiche(sNext.n) : undefined;
+  const contexteSerie = sNext?.n === LECON_RISQUE && aUnePosition
+    ? "Parce que vous avez une position ouverte"
+    : chapitreDe(sNext?.n ?? 0)?.titre ?? "";
+
+  const fiches = LEARN_MODULES.flatMap((m) => m.lessons.map((l) => ({ m, l, cle: `${m.id}/${l.id}` })));
+  const fFaites = fiches.filter((x) => records[x.cle]);
+  const fNext = fiches.find((x) => !records[x.cle]);
 
   return [
     {
+      // Le parcours, c'est la série : les leçons complètes, avec graphiques et quiz.
       nom: "Le parcours",
-      faites: pFaites.length,
-      total: parcours.length,
-      prochaine: pNext
-        ? { titre: pNext.l.title, contexte: pNext.m.title, duree: pNext.l.duration, href: `/learn?lecon=${encodeURIComponent(pNext.cle)}` }
-        : null,
-    },
-    {
-      nom: "Les leçons de la série",
       faites: sFaites.length,
       total: serie.length,
       prochaine: sNext && sFiche
-        ? { titre: sFiche.titre, contexte: chapitreDe(sNext.n)?.titre ?? "", duree: sFiche.duree, href: `/lecon/${sNext.n}` }
+        ? { titre: sFiche.titre, contexte: contexteSerie, duree: sFiche.duree, href: `/lecon/${sNext.n}` }
+        : null,
+    },
+    {
+      // Les fiches : courtes, sans graphique, pour un mot ou une notion en passant.
+      nom: "Les fiches courtes",
+      faites: fFaites.length,
+      total: fiches.length,
+      prochaine: fNext
+        ? { titre: fNext.l.title, contexte: fNext.m.title, duree: fNext.l.duration, href: `/learn?lecon=${encodeURIComponent(fNext.cle)}` }
         : null,
     },
   ];
@@ -76,7 +88,7 @@ function derniere(records: Record<string, LessonRecord>): { titre: string; quand
   return { titre, quand: ilYA(meilleure.date) };
 }
 
-export function ProchaineLecon() {
+export function ProchaineLecon({ aUnePosition = false }: { aUnePosition?: boolean }) {
   const [records, setRecords] = useState<Record<string, LessonRecord> | null>(null);
   const [erreur, setErreur] = useState(false);
 
@@ -90,7 +102,7 @@ export function ProchaineLecon() {
     return () => window.removeEventListener(EVT_PROGRESSION, lire);
   }, [lire]);
 
-  const liste = records ? pistes(records) : [];
+  const liste = records ? pistes(records, aUnePosition) : [];
   const toutFait = liste.length > 0 && liste.every((p) => !p.prochaine);
   const der = records ? derniere(records) : null;
   const rien = records && Object.keys(records).length === 0;

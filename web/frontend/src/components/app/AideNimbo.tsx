@@ -133,7 +133,9 @@ export function AideNimbo() {
 
   // Sur téléphone, ces pages ont leur propre zone de saisie en bas d'écran :
   // le bouton recouvrirait « Envoyer ». Il y reste sur ordinateur.
-  const saisieEnBas = ["/community", "/support", "/assistant"].some((p) => pathname.startsWith(p));
+  // Sur téléphone, le nuage recouvrait « Question suivante » et « Vérifier »
+  // au bas des leçons : là, il ne s'affiche que sur grand écran.
+  const saisieEnBas = ["/community", "/support", "/assistant", "/lecon/", "/learn"].some((p) => pathname.startsWith(p));
   const proposees = suggestions(pathname);
   const dejaPosees = new Set(fil.filter((b): b is { de: "nimbo"; reponse: ReponseAide } => "reponse" in b).map((b) => b.reponse.id));
   const ensuite = [...proposees, ...AIDE].filter((a, i, l) => !dejaPosees.has(a.id) && l.findIndex((x) => x.id === a.id) === i).slice(0, 3);
