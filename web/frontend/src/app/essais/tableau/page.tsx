@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import {
   favoritesAPI, missionsAPI, walletAPI,
   type Aujourdhui, type CourbeWallet, type Favorite, type Position, type TradingStats, type WalletBalance,
@@ -10,8 +9,9 @@ import {
 import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { Eyebrow, Heading, LigneDatee, Num, Panel, Text, WeatherBackdrop, useAnimationsEnabled } from "@/components/design-system";
+import { ArrowRight } from "lucide-react";
 import { getAssetName } from "@/lib/assetInfo";
-import { Tuile } from "@/components/dashboard/Tuiles";
+import { ActionsRapides, Anneau, Tuile } from "@/components/dashboard/Tuiles";
 
 /**
  * ESSAI : « tableau de bord vitré », adapté à la charte.
@@ -27,27 +27,6 @@ import { Tuile } from "@/components/dashboard/Tuiles";
  * Page d'essai, hors menu : /essais/tableau. Elle lit les vrais chiffres du
  * compte connecté.
  */
-
-/** L'anneau de la grande tuile : clair sur l'encre, un point ambre au bout de l'arc. */
-function Anneau({ pct, libelle }: { pct: number; libelle: string }) {
-  const r = 52, c = 2 * Math.PI * r, part = Math.max(0, Math.min(100, pct)) / 100;
-  const angle = -Math.PI / 2 + part * 2 * Math.PI;
-  const bx = 64 + r * Math.cos(angle), by = 64 + r * Math.sin(angle);
-  return (
-    <div className="relative shrink-0" style={{ width: 132, height: 132 }}>
-      <svg viewBox="0 0 128 128" className="h-full w-full" role="img" aria-label={`${pct} % ${libelle}`}>
-        <circle cx="64" cy="64" r={r} fill="none" stroke="rgba(246,242,234,0.16)" strokeWidth="6" />
-        <circle cx="64" cy="64" r={r} fill="none" stroke="#F6F2EA" strokeWidth="6" strokeLinecap="round"
-          strokeDasharray={`${c * part} ${c}`} transform="rotate(-90 64 64)" style={{ transition: "stroke-dasharray var(--cap-dur-3) var(--cap-ease)" }} />
-        {part > 0 && <circle cx={bx} cy={by} r="5" fill="var(--cap-ambre)" />}
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="cap-num text-[1.9rem] font-medium leading-none" style={{ color: "#F6F2EA" }}>{pct} %</span>
-        <span className="mt-1 text-[0.78rem]" style={{ color: "rgba(232,237,241,0.66)" }}>{libelle}</span>
-      </div>
-    </div>
-  );
-}
 
 export default function EssaiTableau() {
   const { user } = useAuth();
@@ -85,13 +64,6 @@ export default function EssaiTableau() {
   const missionsFaites = jour ? jour.missions.filter((m) => m.fait).length : 0;
   const first = user?.first_name || user?.username || "";
 
-  const actions = [
-    { label: "Analyser un actif", href: "/analysis", detail: "le verdict, le plan, le pourquoi" },
-    { label: "Ouvrir une position", href: "/trading", detail: "en argent fictif" },
-    { label: "Noter au journal", href: "/journal", detail: "une décision, même non prise" },
-    { label: "Lancer un scan", href: "/scanner", detail: "ce que Nimbo retient aujourd'hui" },
-    { label: "Préparer la semaine", href: "/semaine", detail: "le week-end" },
-  ];
 
   return (
     <>
@@ -190,18 +162,7 @@ export default function EssaiTableau() {
         {/* ── Essai C : les actions rapides ───────────────────────────── */}
         <section aria-labelledby="essai-c">
           <h2 id="essai-c" className="mb-3 text-[1.05rem] font-bold" style={{ color: "var(--cap-ink)" }}>C. Les actions rapides</h2>
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {actions.map((a) => (
-              <Link key={a.href} href={a.href} className="cap-tuile group flex items-center justify-between gap-3 rounded-[var(--cap-r-md)] px-4 py-3.5"
-                style={{ backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line)" }}>
-                <span className="min-w-0">
-                  <span className="block text-[0.93rem] font-semibold" style={{ color: "var(--cap-ink)" }}>{a.label}</span>
-                  <span className="block text-[0.8rem]" style={{ color: "var(--cap-ink-3)" }}>{a.detail}</span>
-                </span>
-                <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-1" style={{ color: "var(--cap-amber-ink)" }} />
-              </Link>
-            ))}
-          </div>
+          <ActionsRapides />
           <Text size="caption" className="mt-3">
             Le relief au survol vient d&apos;une seule règle de style (`.cap-tuile`), coupée quand les animations le sont.
           </Text>

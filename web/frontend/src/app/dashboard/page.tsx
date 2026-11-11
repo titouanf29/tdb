@@ -7,7 +7,7 @@ import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
 import { FaconDeTrader } from "@/components/dashboard/FaconDeTrader";
 import { Intention } from "@/components/dashboard/Intention";
 import { ProchaineLecon } from "@/components/dashboard/ProchaineLecon";
-import { TuilesCompte } from "@/components/dashboard/Tuiles";
+import { ActionsRapides, Anneau, TuilesCompte } from "@/components/dashboard/Tuiles";
 import { lundiAPreparer, weekendOuvert } from "@/lib/semaine";
 import { useAuth } from "@/lib/AuthContext";
 import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
@@ -197,7 +197,12 @@ export default function DashboardPage() {
 
         {/* ── 2. One thing to do ───────────────────────────────────────── */}
         <Reveal delay={0.04}>
-          <NextStep intent={intent} positions={positions} favorites={favorites} money={money} />
+          <NextStep intent={intent} positions={positions} favorites={favorites} money={money} equity={equity} />
+        </Reveal>
+
+        {/* Les gestes du quotidien, à portée de main dès l'arrivée. */}
+        <Reveal delay={0.05}>
+          <ActionsRapides />
         </Reveal>
 
         {/* ── Demain, juste après la prochaine étape ─────────────────────
@@ -509,12 +514,15 @@ function NextStep({
   positions,
   favorites,
   money,
+  equity,
 }: {
   intent: DailyIntentResult | null;
   positions: Position[];
   favorites: Favorite[];
   money: (v: number) => string;
+  equity: number;
 }) {
+  const partEngagee = equity > 0 ? Math.min(100, Math.round((positions.reduce((a, p) => a + p.amount, 0) / equity) * 100)) : 0;
   const suggestion = useMemo(() => {
     const picked = (intent as unknown as { assets?: { symbol: string }[] })?.assets?.[0];
 
@@ -687,6 +695,10 @@ function NextStep({
           style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)" }} />
       </div>
 
+      {/* L'ANNEAU DE L'EXPOSITION, à droite du texte : la part du capital
+          qui travaille, le geste de la grande tuile d'un tableau « en verre ». */}
+      <div className="relative flex items-start justify-between gap-5">
+      <div className="min-w-0 flex-1">
       <div className="relative flex items-center gap-2.5">
         <span className="relative inline-flex">
           <span aria-hidden className="cap-app-onde absolute inset-0 rounded-full" style={{ boxShadow: "0 0 0 1.5px var(--cap-amber)" }} />
@@ -734,6 +746,14 @@ function NextStep({
             Le stop et l&apos;objectif, expliqués en 14 min
           </Link>
         )}
+      </div>
+      </div>
+      {positions.length > 0 && equity > 0 && (
+        <>
+          <div className="hidden sm:block"><Anneau pct={partEngagee} libelle="engagé" size={124} /></div>
+          <div className="sm:hidden"><Anneau pct={partEngagee} libelle="engagé" size={84} /></div>
+        </>
+      )}
       </div>
     </section>
   );
