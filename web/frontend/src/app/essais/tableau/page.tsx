@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import {
   favoritesAPI, missionsAPI, walletAPI,
   type Aujourdhui, type CourbeWallet, type Favorite, type Position, type TradingStats, type WalletBalance,
@@ -11,6 +11,7 @@ import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { Eyebrow, Heading, LigneDatee, Num, Panel, Text, WeatherBackdrop, useAnimationsEnabled } from "@/components/design-system";
 import { getAssetName } from "@/lib/assetInfo";
+import { Tuile } from "@/components/dashboard/Tuiles";
 
 /**
  * ESSAI : « tableau de bord vitré », adapté à la charte.
@@ -26,24 +27,6 @@ import { getAssetName } from "@/lib/assetInfo";
  * Page d'essai, hors menu : /essais/tableau. Elle lit les vrais chiffres du
  * compte connecté.
  */
-
-function Courbe({ points, tone = "ink" }: { points: number[]; tone?: "ink" | "up" | "down" | "clair" }) {
-  if (points.length < 2) return null;
-  const min = Math.min(...points), max = Math.max(...points);
-  const w = 120, h = 36;
-  const d = points.map((v, i) => {
-    const x = (i / (points.length - 1)) * w;
-    const y = max === min ? h / 2 : h - ((v - min) / (max - min)) * (h - 4) - 2;
-    return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
-  const couleur = tone === "up" ? "var(--cap-up-fill)" : tone === "down" ? "var(--cap-down-fill)" : tone === "clair" ? "rgba(246,242,234,0.85)" : "var(--cap-ocean)";
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-9 w-full" aria-hidden preserveAspectRatio="none">
-      <path d={`${d} L${w},${h} L0,${h} Z`} fill={couleur} opacity="0.12" />
-      <path d={d} fill="none" stroke={couleur} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 /** L'anneau de la grande tuile : clair sur l'encre, un point ambre au bout de l'arc. */
 function Anneau({ pct, libelle }: { pct: number; libelle: string }) {
@@ -64,37 +47,6 @@ function Anneau({ pct, libelle }: { pct: number; libelle: string }) {
       </div>
     </div>
   );
-}
-
-function Tuile({ titre, valeur, legende, variation, courbe, sombre, tone, href }: {
-  titre: string; valeur: string; legende?: string;
-  variation?: { texte: string; tone: "up" | "down" | "ink" };
-  courbe?: number[]; sombre?: boolean; tone?: "ink" | "up" | "down"; href?: string;
-}) {
-  const inner = (
-    <>
-      <div className="flex items-start justify-between gap-3">
-        <span className="text-[0.85rem] font-semibold" style={{ color: sombre ? "rgba(232,237,241,0.72)" : "var(--cap-ink-3)" }}>{titre}</span>
-        {variation && (
-          <span className="cap-num inline-flex items-center gap-0.5 text-[0.82rem] font-medium"
-            style={{ color: sombre ? "#F6F2EA" : variation.tone === "up" ? "var(--cap-up)" : variation.tone === "down" ? "var(--cap-down)" : "var(--cap-ink-2)" }}>
-            {variation.tone === "up" && <ArrowUpRight className="h-3.5 w-3.5" />}
-            {variation.texte}
-          </span>
-        )}
-      </div>
-      {sombre
-        ? <span className="cap-num mt-3 block text-[clamp(1.6rem,3vw,2.1rem)] font-medium leading-none" style={{ color: "#F6F2EA" }}>{valeur}</span>
-        : <Num tone={tone ?? "ink"} className="mt-3 block text-[clamp(1.6rem,3vw,2.1rem)] font-medium leading-none">{valeur}</Num>}
-      {legende && <span className="mt-2 block text-[0.82rem]" style={{ color: sombre ? "rgba(232,237,241,0.66)" : "var(--cap-ink-3)" }}>{legende}</span>}
-      {courbe && courbe.length > 1 && <div className="mt-3"><Courbe points={courbe} tone={sombre ? "clair" : tone ?? "ink"} /></div>}
-    </>
-  );
-  const classe = "cap-tuile block rounded-[var(--cap-r-lg)] p-5";
-  const style = sombre
-    ? { backgroundColor: "var(--cap-navy)", color: "#E8EDF1" }
-    : { backgroundColor: "var(--cap-surface)", boxShadow: "inset 0 0 0 1px var(--cap-line)" };
-  return href ? <Link href={href} className={classe} style={style}>{inner}</Link> : <div className={classe} style={style}>{inner}</div>;
 }
 
 export default function EssaiTableau() {

@@ -7,6 +7,7 @@ import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
 import { FaconDeTrader } from "@/components/dashboard/FaconDeTrader";
 import { Intention } from "@/components/dashboard/Intention";
 import { ProchaineLecon } from "@/components/dashboard/ProchaineLecon";
+import { TuilesCompte } from "@/components/dashboard/Tuiles";
 import { lundiAPreparer, weekendOuvert } from "@/lib/semaine";
 import { useAuth } from "@/lib/AuthContext";
 import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
@@ -102,10 +103,6 @@ export default function DashboardPage() {
   const equity = balance ? (balance.total_equity ?? balance.balance + balance.positions_value) : 0;
   // Le solde compte jusqu'à sa valeur à l'arrivée, puis suit ses mises à jour.
   const equityAffichee = useCompteur(equity, animOn);
-  const pnl = balance?.total_pnl ?? 0;
-  // Against the starting stake, which is what "how am I doing" means — not
-  // against today's equity, which would flatter a losing account.
-  const pnlPct = equity - pnl !== 0 ? (pnl / (equity - pnl)) * 100 : 0;
 
   // The sky reads the assets this user follows, so it says something about
   // their day rather than about the market in general.
@@ -263,33 +260,11 @@ export default function DashboardPage() {
               }
               action={{ label: "Ouvrir le wallet", href: "/wallet" }}
             >
-              <Num className="text-[clamp(1.9rem,4vw,2.5rem)] font-medium leading-none">
-                {money(equityAffichee)}
-              </Num>
-              <Text size="caption" className="mt-2">Valeur totale</Text>
-
-              <div
-                className="cap-liste mt-5 grid grid-cols-3 gap-4 border-t pt-4"
-                style={{ borderColor: "var(--cap-line)" }}
-              >
-                <Figure
-                  value={`${pnl >= 0 ? "+" : ""}${money(pnl)}`}
-                  label={`${pnl >= 0 ? "+" : ""}${fr(pnlPct, 1)} %`}
-                  tone={pnl >= 0 ? "up" : "down"}
-                />
-                <Figure
-                  value={String(positions.length)}
-                  label={positions.length > 1 ? "positions" : "position"}
-                />
-                <Figure
-                  value={stats && stats.total_trades > 0 ? `${fr(stats.win_rate, 0)} %` : "—"}
-                  label={
-                    stats && stats.total_trades > 0
-                      ? `sur ${stats.total_trades} trades`
-                      : "aucun trade"
-                  }
-                />
-              </div>
+              {/* LES CHIFFRES EN TUILES. Le solde et trois chiffres alignés
+                  deviennent quatre tuiles qui se soulèvent au survol, avec
+                  la courbe du compte et celle des positions : le geste d'un
+                  tableau de bord « en verre », sur des surfaces opaques. */}
+              <TuilesCompte equity={equityAffichee} stats={stats} positions={positions} money={money} />
 
               {positions.length > 0 && (
                 <div className="mt-5 border-t pt-2" style={{ borderColor: "var(--cap-line)" }}>
@@ -431,26 +406,6 @@ function useCompteur(cible: number, actif: boolean): number {
 
 /* ── Bits ─────────────────────────────────────────────────────────────────── */
 
-function Figure({
-  value,
-  label,
-  tone = "ink",
-}: {
-  value: string;
-  label: string;
-  tone?: "ink" | "up" | "down";
-}) {
-  return (
-    <div className="min-w-0">
-      <Num tone={tone} className="block truncate text-[1.05rem] font-medium leading-none">
-        {value}
-      </Num>
-      <span className="mt-1.5 block truncate text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>
-        {label}
-      </span>
-    </div>
-  );
-}
 
 /**
  * The ambient-animation switch.
