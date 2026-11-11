@@ -71,27 +71,35 @@ export function Tuile({ titre, valeur, legende, variation, courbe, sombre, tone,
 
 const pl = (k: number, s: string, p: string) => (k > 1 ? p : s);
 
-/** Ce que les tuiles disent, calculé hors du rendu. */
-function chiffres(equity: number, stats: TradingStats | null, positions: Position[], courbe: CourbeWallet | null, money: (v: number) => string) {
+/** Les légendes qui dépendent des trades fermés et de la courbe. */
+function legendesHistorique(stats: TradingStats | null, courbe: CourbeWallet | null, money: (v: number) => string) {
+  const t = stats?.total_trades ?? 0;
+  const total = stats?.total_pnl ?? 0;
+  const depart = courbe?.capital_depart || 10_000;
+  const nb = courbe?.trades ?? 0;
+  return {
+    pointsCapital: courbe ? [depart, ...courbe.points.map((p) => depart + p.cumul)] : [],
+    pointsTrades: courbe ? courbe.points.map((p) => p.pnl) : [],
+    legendeValeur: nb > 0 ? `${nb} ${pl(nb, "trade fermé", "trades fermés")}, trade après trade` : "Le compte de simulation",
+    variationValeur: total ? { texte: `${total >= 0 ? "+" : ""}${money(total)}`, tone: (total >= 0 ? "up" : "down") as "up" | "down" } : undefined,
+    valeurReussite: t > 0 && stats ? `${fr(stats.win_rate, 0)} %` : "—",
+    legendeReussite: t > 0 ? `sur ${t} ${pl(t, "trade fermé", "trades fermés")}` : "après le premier trade fermé",
+  };
+}
+
+/** Ce que les positions ouvertes disent : latent, engagé, stops manquants. */
+function chiffresPositions(equity: number, positions: Position[]) {
   const latent = positions.reduce((a, p) => a + (p.unrealized_pnl ?? 0), 0);
   const engage = positions.reduce((a, p) => a + p.amount, 0);
   const part = equity > 0 ? Math.min(100, Math.round((engage / equity) * 100)) : 0;
   const sansStop = positions.filter((p) => p.stop_loss == null && p.instrument !== "turbo").length;
   const n = positions.length;
-  const t = stats?.total_trades ?? 0;
-  const depart = courbe?.capital_depart || 10_000;
-  const total = stats?.total_pnl ?? 0;
+  const mentionStop = sansStop ? `, ${sansStop} sans stop` : "";
   return {
     latent, engage,
-    pointsCapital: courbe ? [depart, ...courbe.points.map((p) => depart + p.cumul)] : [],
-    pointsTrades: courbe ? courbe.points.map((p) => p.pnl) : [],
-    legendeValeur: courbe && courbe.trades > 0 ? `${courbe.trades} ${pl(courbe.trades, "trade fermé", "trades fermés")}, trade après trade` : "Le compte de simulation",
-    variationValeur: total ? { texte: `${total >= 0 ? "+" : ""}${money(total)}`, tone: (total >= 0 ? "up" : "down") as "up" | "down" } : undefined,
     legendeLatent: n ? `sur ${n} ${pl(n, "position ouverte", "positions ouvertes")}` : "aucune position ouverte",
-    legendeEngage: `${part} % du compte${sansStop ? `, ${sansStop} sans stop` : ""}`,
+    legendeEngage: `${part} % du compte${mentionStop}`,
     variationEngage: sansStop ? { texte: "stop à poser", tone: "down" as const } : undefined,
-    valeurReussite: stats && t > 0 ? `${fr(stats.win_rate, 0)} %` : "—",
-    legendeReussite: stats && t > 0 ? `sur ${t} ${pl(t, "trade fermé", "trades fermés")}` : "après le premier trade fermé",
   };
 }
 
@@ -101,16 +109,17 @@ export function TuilesCompte({ equity, stats, positions, money }: {
 }) {
   const [courbe, setCourbe] = useState<CourbeWallet | null>(null);
   useEffect(() => { walletAPI.getCourbe().then(setCourbe).catch(() => {}); }, []);
-  const c = useMemo(() => chiffres(equity, stats, positions, courbe, money), [equity, stats, positions, courbe, money]);
+  const h = useMemo(() => legendesHistorique(stats, courbe, money), [stats, courbe, money]);
+  const c = useMemo(() => chiffresPositions(equity, positions), [equity, positions]);
 
   return (
     <div className="grid grid-cols-2 gap-3">
-      <Tuile sombre titre="Valeur totale" valeur={money(equity)} legende={c.legendeValeur} variation={c.variationValeur}
-        courbe={c.pointsCapital} href="/wallet" />
+      <Tuile sombre titre="Valeur totale" valeur={money(equity)} legende={h.legendeValeur} variation={h.variationValeur}
+        courbe={h.pointsCapital} href="/wallet" />
       <Tuile titre="Résultat latent" valeur={`${c.latent >= 0 ? "+" : ""}${money(c.latent)}`} tone={c.latent >= 0 ? "up" : "down"}
         legende={c.legendeLatent} courbe={positions.map((p) => p.pnl_percent ?? 0)} href="/wallet" />
       <Tuile titre="Capital engagé" valeur={money(c.engage)} legende={c.legendeEngage} variation={c.variationEngage} href="/wallet" />
-      <Tuile titre="Taux de réussite" valeur={c.valeurReussite} legende={c.legendeReussite} courbe={c.pointsTrades} href="/journal" />
+      <Tuile titre="Taux de réussite" valeur={h.valeurReussite} legende={h.legendeReussite} courbe={h.pointsTrades} href="/journal" />
     </div>
   );
 }
