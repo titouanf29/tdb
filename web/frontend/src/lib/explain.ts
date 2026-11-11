@@ -87,6 +87,57 @@ export function tendanceExpliquee(a: Analysis, prix: (v: number) => string): str
  * untradeable, then the factors that agree, then the ones that do not, then
  * the risk to watch.
  */
+/**
+ * Les signaux nommés du moteur, dits en français courant.
+ *
+ * « MACD positif · Prix > EMA20 · ADX fort (32) tendance haussière » est la
+ * liste que le moteur se fait à lui-même. Une lectrice qui débute y a vu du
+ * bruit et a fermé la page. Chaque signal devient une phrase qui dit ce
+ * qu'il mesure ; le nom de l'indicateur reste entre parenthèses, pour ceux
+ * qui le connaissent et pour le glossaire. Un signal inconnu passe tel quel.
+ */
+const SIGNAUX: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [/^MACD positif$/, () => "L'élan est orienté à la hausse (MACD positif)."],
+  [/^MACD négatif$/, () => "L'élan est orienté à la baisse (MACD négatif)."],
+  [/^Croisement haussier MACD$/, () => "L'élan vient de tourner à la hausse (croisement haussier du MACD)."],
+  [/^Croisement baissier MACD$/, () => "L'élan vient de tourner à la baisse (croisement baissier du MACD)."],
+  [/^Prix > EMA(\d+)(?: \(zone dorée\))?$/, (m) => `Le cours est au-dessus de sa moyenne des ${m[1]} dernières bougies (EMA${m[1]}).`],
+  [/^Prix < EMA(\d+)$/, (m) => `Le cours est sous sa moyenne des ${m[1]} dernières bougies (EMA${m[1]}).`],
+  [/^ADX fort \(([^)]+)\) tendance haussière$/, (m) => `La tendance est nette et orientée à la hausse (ADX ${m[1]}).`],
+  [/^ADX fort \(([^)]+)\) tendance baissière$/, (m) => `La tendance est nette et orientée à la baisse (ADX ${m[1]}).`],
+  [/^RSI survendu/, () => "Le cours a beaucoup baissé en peu de temps, zone de survente (RSI sous 30)."],
+  [/^RSI suracheté/, () => "Le cours a beaucoup monté en peu de temps, zone de surachat (RSI au-dessus de 70)."],
+  [/^Divergence haussière RSI\/Prix$/, () => "Le cours fait un nouveau plus bas que l'élan ne confirme pas (divergence haussière du RSI)."],
+  [/^Divergence baissière RSI\/Prix$/, () => "Le cours fait un nouveau plus haut que l'élan ne confirme pas (divergence baissière du RSI)."],
+  [/^Stochastique survendu$/, () => "Le cours est au plus bas de sa fourchette récente (stochastique en survente)."],
+  [/^Stochastique suracheté$/, () => "Le cours est au plus haut de sa fourchette récente (stochastique en surachat)."],
+  [/^Croisement haussier Stochastique$/, () => "Le cours repart du bas de sa fourchette récente (croisement haussier du stochastique)."],
+  [/^Croisement baissier Stochastique$/, () => "Le cours redescend du haut de sa fourchette récente (croisement baissier du stochastique)."],
+  [/^Williams %R survendu$/, () => "Le cours est au plus bas de sa fourchette récente (Williams %R en survente)."],
+  [/^Williams %R suracheté$/, () => "Le cours est au plus haut de sa fourchette récente (Williams %R en surachat)."],
+  [/^OBV en tendance haussière$/, () => "Les volumes accompagnent la hausse (OBV en hausse)."],
+  [/^OBV en tendance baissière$/, () => "Les volumes accompagnent la baisse (OBV en baisse)."],
+  [/^CMF positif \(([^)]+)\)/, (m) => `L'argent entre sur l'actif (CMF ${m[1]}).`],
+  [/^CMF négatif \(([^)]+)\)/, (m) => `L'argent sort de l'actif (CMF ${m[1]}).`],
+  [/^Prix sous la bande Bollinger basse$/, () => "Le cours est sorti par le bas de sa zone habituelle (sous la bande de Bollinger basse)."],
+  [/^Prix au-dessus de la bande Bollinger haute$/, () => "Le cours est sorti par le haut de sa zone habituelle (au-dessus de la bande de Bollinger haute)."],
+  [/^Volume élevé à la hausse \(([^)]+)\)$/, (m) => `Beaucoup d'échanges dans la hausse (volume à ${m[1]}).`],
+  [/^Volume élevé à la baisse \(([^)]+)\)$/, (m) => `Beaucoup d'échanges dans la baisse (volume à ${m[1]}).`],
+  [/^Volume très faible$/, () => "Très peu d'échanges : le mouvement n'est pas porté (volume très faible)."],
+  [/^Momentum (\S+) fort \(([^)]+)\)$/, (m) => `Le cours a nettement monté sur ${m[1]} (${m[2]}).`],
+  [/^Momentum (\S+) faible \(([^)]+)\)$/, (m) => `Le cours a nettement baissé sur ${m[1]} (${m[2]}).`],
+  [/^Confirmé par la tendance (\S+) haussière$/, (m) => `La tendance de l'unité supérieure (${m[1]}) va aussi vers le haut.`],
+  [/^Confirmé par la tendance (\S+) baissière$/, (m) => `La tendance de l'unité supérieure (${m[1]}) va aussi vers le bas.`],
+];
+
+export function signalLisible(brut: string): string {
+  for (const [re, phrase] of SIGNAUX) {
+    const m = brut.match(re);
+    if (m) return phrase(m);
+  }
+  return brut;
+}
+
 export function buildReasons(a: Analysis): Reason[] {
   const out: Reason[] = [];
 
@@ -148,8 +199,8 @@ export function buildReasons(a: Analysis): Reason[] {
   // les actifs où il ne renvoie rien.
   const named = a.conviction;
   if (named && (named.bullish_signals?.length || named.bearish_signals?.length)) {
-    named.bullish_signals?.slice(0, 4).forEach((t) => out.push({ text: t, tone: "up" }));
-    named.bearish_signals?.slice(0, 3).forEach((t) => out.push({ text: t, tone: "down" }));
+    named.bullish_signals?.slice(0, 4).forEach((t) => out.push({ text: signalLisible(t), tone: "up" }));
+    named.bearish_signals?.slice(0, 3).forEach((t) => out.push({ text: signalLisible(t), tone: "down" }));
     if (named.bullish_signals?.length && named.bearish_signals?.length) {
       out.push({
         text: "Des signaux vont dans les deux sens, c'est ce qui limite la confiance du verdict.",

@@ -511,7 +511,7 @@ export default function TradingPage() {
                   </span>
                   <SegmentedControl
                     options={[
-                      { value: "cfd", label: "Montant × levier" },
+                      { value: "cfd", label: "Comptant ou levier" },
                       { value: "turbo", label: "Turbo" },
                     ]}
                     value={produit}
@@ -522,9 +522,11 @@ export default function TradingPage() {
                     aria-label="Produit"
                   />
                   <Text size="caption" className="mt-2">
-                    {turbo
-                      ? "Des titres entiers d'un produit à barrière, comme chez Trade Republic ou Boursorama."
-                      : "Une somme multipliée par le levier, comme un CFD."}
+                    {turbo && "Des titres entiers d'un produit à barrière, comme chez Trade Republic ou Boursorama."}
+                    {/* Un lecteur qui achète des actions au comptant cherchait
+                        sa case : c'est celle-ci, levier ×1. */}
+                    {!turbo && leverage <= 1 && "Un achat au comptant : la somme engagée achète des titres, sans levier. Montez le levier pour un CFD."}
+                    {!turbo && leverage > 1 && "Une somme multipliée par le levier, comme un CFD. Levier ×1 pour un achat au comptant."}
                     {settings.broker !== "none" && <> · {BROKER_PRESETS[settings.broker].label}</>}
                     {fraisOrdre > 0 && <>, {money(fraisOrdre)} par ordre</>}
                     {" · "}
@@ -744,6 +746,7 @@ export default function TradingPage() {
                 Vous allez {direction === "LONG" ? "acheter" : "vendre"} {getAssetName(symbol.toUpperCase())} pour{" "}
                 {money(turbo ? coutTitres : amount)}
                 {!turbo && leverage > 1 && <>, avec un levier ×{leverage} (exposition {money(exposition)})</>}
+                {!turbo && leverage <= 1 && <> au comptant, sans levier</>}
                 {turbo && <> en turbo ×{fr(levierTurbo, 1)}</>}
                 {useSL && stopLoss != null && !erreurStop && <>, stop à {assetPrice(stopLoss)}</>}
                 {useTP && takeProfit != null && !erreurObjectif && <>, objectif à {assetPrice(takeProfit)}</>}.

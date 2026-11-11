@@ -593,6 +593,8 @@ class ProfileRequest(BaseModel):
     disponibilite: Optional[str] = None
     reaction: Optional[str] = None
     lecture: Optional[str] = None
+    # Quand la fenêtre de bienvenue a été fermée (ISO) : vaut pour tous les appareils.
+    bienvenue_vue: Optional[str] = None
     connait: Optional[List[str]] = None
 
 
@@ -602,10 +604,11 @@ async def get_profile_preferences(current_user: dict = Depends(get_current_user)
         "goal": None, "markets": [], "weekly_time": None, "updated_at": None,
         "mise_eur": None, "perte_max_pct": None, "disponibilite": None,
         "reaction": None, "lecture": None, "connait": [], "intentions_at": None,
+        "bienvenue_vue": None,
     }
     rows = await execute_query(
         "SELECT goal, markets, weekly_time, updated_at, mise_eur, perte_max_pct, "
-        "disponibilite, reaction, lecture, connait, intentions_at "
+        "disponibilite, reaction, lecture, connait, intentions_at, bienvenue_vue "
         "FROM user_profile WHERE user_id = ?",
         (current_user["id"],),
     )
@@ -639,6 +642,7 @@ async def get_profile_preferences(current_user: dict = Depends(get_current_user)
         "lecture": _dans(r.get("lecture"), VALID_LECTURES),
         "connait": [c for c in connait if c in VALID_INDICATEURS],
         "intentions_at": r.get("intentions_at"),
+        "bienvenue_vue": r.get("bienvenue_vue"),
     }
 
 
@@ -734,13 +738,19 @@ async def update_profile_preferences(
     ))
     intentions_at = now if touche_intentions else current.get("intentions_at")
 
+    bienvenue_vue = current.get("bienvenue_vue")
+    if data.bienvenue_vue is not None:
+        if len(data.bienvenue_vue) > 40 or any(c in data.bienvenue_vue for c in "<>\n\r\t"):
+            raise HTTPException(status_code=400, detail="Horodatage invalide")
+        bienvenue_vue = data.bienvenue_vue or None
+
     # ON CONFLICT DO UPDATE : deux onglets ouverts, ou un double envoi, ne
     # doivent pas remonter une violation de clé primaire en 500.
     await execute_write(
         """INSERT INTO user_profile (user_id, goal, markets, weekly_time, updated_at,
                                      mise_eur, perte_max_pct, disponibilite, reaction,
-                                     lecture, connait, intentions_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     lecture, connait, intentions_at, bienvenue_vue)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT (user_id) DO UPDATE
            SET goal = EXCLUDED.goal,
                markets = EXCLUDED.markets,
@@ -752,14 +762,15 @@ async def update_profile_preferences(
                reaction = EXCLUDED.reaction,
                lecture = EXCLUDED.lecture,
                connait = EXCLUDED.connait,
-               intentions_at = EXCLUDED.intentions_at""",
+               intentions_at = EXCLUDED.intentions_at,
+               bienvenue_vue = EXCLUDED.bienvenue_vue""",
         (user_id, goal, json.dumps(markets), weekly_time, now,
-         mise, perte, disponibilite, reaction, lecture, json.dumps(connait), intentions_at),
+         mise, perte, disponibilite, reaction, lecture, json.dumps(connait), intentions_at, bienvenue_vue),
     )
 
     return {
         "goal": goal, "markets": markets, "weekly_time": weekly_time, "updated_at": now,
         "mise_eur": mise, "perte_max_pct": perte, "disponibilite": disponibilite,
         "reaction": reaction, "lecture": lecture, "connait": connait,
-        "intentions_at": intentions_at,
+        "intentions_at": intentions_at, "bienvenue_vue": bienvenue_vue,
     }

@@ -143,7 +143,7 @@ def _a_dt(v) -> datetime | None:
 
 async def _profil(user: dict) -> dict:
     uid = user["id"]
-    out = {"goal": None, "markets": [], "weekly_time": None, "style": "day",
+    out = {"goal": None, "markets": [], "weekly_time": None, "style": "swing",
            "risk": "moderate", "perte_max_pct": None, "disponibilite": None}
     try:
         rows = await execute_query(
@@ -488,7 +488,9 @@ def _a_penser(profil: dict, semaine: dict, ouvertes: list, prix: dict, agenda: d
             "lien": "/wallet",
         })
 
-    actions = [p for p in ouvertes if not _crypto(p["symbol"])]
+    # Seulement les positions QUI ONT un stop : pour les autres, la carte du
+    # dessus dit déjà tout, et deux cartes pour un conseil, c'est une de trop.
+    actions = [p for p in ouvertes if not _crypto(p["symbol"]) and (p.get("stop_loss") is not None or p.get("instrument") == "turbo")]
     if actions:
         out.append({
             "niveau": "conseil",
@@ -687,7 +689,7 @@ async def _tout(user: dict) -> dict:
     try:
         from ..services import bilan as _bilan
         activite = await _bilan._activite(int(user["id"]), lundi_ecoule, lundi)
-        lecture = {"activite": activite, **_bilan.lire(semaine, activite)}
+        lecture = {"activite": activite, **_bilan.lire(semaine, activite, len(ouvertes))}
         await _bilan._ajouter_defi(int(user["id"]), lundi_ecoule, lecture)
     except Exception as e:
         logger.info("semaine : bilan indisponible (%s)", e)

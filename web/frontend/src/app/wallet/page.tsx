@@ -1,5 +1,7 @@
 "use client";
 
+import { getAssetName } from "@/lib/assetInfo";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
@@ -444,7 +446,11 @@ export default function WalletPage() {
                           className="text-[0.98rem] font-medium transition-colors hover:underline"
                           style={{ color: "var(--cap-ink)" }}
                         >
-                          {p.symbol}
+                          {/* Le nom, le code à côté : « LVMH », pas « MC.PA ». */}
+                          {p.name || getAssetName(p.symbol)}
+                          {(p.name || getAssetName(p.symbol)) !== p.symbol && (
+                            <span className="ml-1.5 text-[0.8rem] font-normal" style={{ color: "var(--cap-ink-3)" }}>{p.symbol}</span>
+                          )}
                         </button>
                         <span
                           className="rounded-[6px] px-1.5 py-0.5 text-[0.7rem]"
@@ -658,16 +664,22 @@ export default function WalletPage() {
 
       {/* ── Levels ─────────────────────────────────────────────────────── */}
       <Modal open={!!editing} onClose={() => setEditing(null)} title="Niveaux">
-        <Heading level={3}>Niveaux de {editing?.symbol}</Heading>
+        <Heading level={3}>Niveaux de {editing?.name || getAssetName(editing?.symbol ?? "")}</Heading>
+        {/* LE COURS, LA DISTANCE, LES EUROS PENDANT LA SAISIE. Deux champs
+            nus demandaient de calculer de tête « 178, ça fait −4,6 %, soit
+            −93 € avec le levier » ; la fenêtre le fait maintenant. */}
         <Text size="small" className="mt-2">
+          {editing?.current_price != null
+            ? <>Cours actuel {assetPrice(editing.current_price, editing.symbol)}, entrée à {assetPrice(editing.entry_price, editing.symbol)}. </>
+            : null}
           Laissez vide pour retirer un niveau.
         </Text>
         <form onSubmit={saveLevels} className="mt-6 space-y-4" noValidate>
           {error && <FormError>{error}</FormError>}
-          <Field label="Stop de protection" htmlFor="w-sl">
+          <Field label="Stop de protection" htmlFor="w-sl" hint={editing ? effetNiveau(editing, sl, "stop", money) : undefined}>
             <TextInput id="w-sl" value={sl} onChange={setSl} placeholder="0.00" />
           </Field>
-          <Field label="Objectif de gain" htmlFor="w-tp">
+          <Field label="Objectif de gain" htmlFor="w-tp" hint={editing ? effetNiveau(editing, tp, "objectif", money) : undefined}>
             <TextInput id="w-tp" value={tp} onChange={setTp} placeholder="0.00" />
           </Field>
           <div className="flex gap-2">
@@ -762,4 +774,28 @@ export default function WalletPage() {
       </Modal>
     </>
   );
+}
+
+/**
+ * Ce que ferait un niveau, pendant qu'on le tape : la distance au cours en
+ * pourcentage, et le résultat en euros, levier compris. « −4,6 %, soit −93 € »
+ * se décide ; « 178 » se devine.
+ */
+function effetNiveau(p: Position, saisie: string, quoi: "stop" | "objectif", money: (v: number) => string): string | undefined {
+  const niveau = Number(String(saisie).replace(",", "."));
+  const cours = p.current_price ?? p.entry_price;
+  if (!saisie.trim() || !Number.isFinite(niveau) || niveau <= 0 || !cours) return undefined;
+  const long = p.direction === "LONG";
+  const distance = ((niveau - cours) / cours) * 100;
+  const gain = (long ? niveau - p.entry_price : p.entry_price - niveau) * p.quantity;
+  const sens = distance >= 0 ? "au-dessus" : "en dessous";
+  const d = `${Math.abs(distance).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % ${sens} du cours`;
+  const euros = `${gain >= 0 ? "+" : ""}${money(gain)} si ce niveau est touché`;
+  // Un stop se place du côté de la perte, un objectif du côté du gain.
+  const cotePerte = long ? niveau >= cours : niveau <= cours;
+  const mauvaisCote = quoi === "stop" ? cotePerte : !cotePerte && niveau !== cours;
+  const rappel = quoi === "stop" ? "un stop se place du côté de la perte" : "un objectif se place du côté du gain";
+  if (mauvaisCote || niveau === cours) return `${d} : ${rappel}, il se déclencherait tout de suite.`;
+  const levier = p.leverage > 1 ? ` (levier ×${p.leverage} compris)` : "";
+  return `${d}, ${euros}${levier}.`;
 }

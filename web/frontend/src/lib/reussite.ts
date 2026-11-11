@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from "react";
 import type { ActionResult } from "./api";
 
 /**
@@ -17,11 +18,43 @@ export interface Reussite {
 
 export const EVENEMENT_REUSSITE = "tdb-reussite";
 
+/**
+ * Les cartes se coupent, par appareil, dans les réglages. Un lecteur qui
+ * voulait qu'on lui parle du risque comme à un adulte n'a pas envie qu'un
+ * badge tombe à chaque clic. Les points continuent de compter ; seules les
+ * cartes se taisent.
+ */
+export const CLE_FELICITATIONS = "tdb_felicitations";
+export const EVENEMENT_FELICITATIONS = "tdb-felicitations";
+
+export function felicitationsActives(): boolean {
+  try { return localStorage.getItem(CLE_FELICITATIONS) !== "off"; } catch { return true; }
+}
+
+export function reglerFelicitations(actives: boolean) {
+  try { localStorage.setItem(CLE_FELICITATIONS, actives ? "on" : "off"); } catch { /* navigation privée */ }
+  window.dispatchEvent(new Event(EVENEMENT_FELICITATIONS));
+}
+
+/** Pour les réglages : l'état, et de quoi le changer. */
+export function useFelicitations(): [boolean, (v: boolean) => void] {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    const lire = () => setOn(felicitationsActives());
+    lire();
+    window.addEventListener(EVENEMENT_FELICITATIONS, lire);
+    return () => window.removeEventListener(EVENEMENT_FELICITATIONS, lire);
+  }, []);
+  const set = useCallback((v: boolean) => reglerFelicitations(v), []);
+  return [on, set];
+}
+
 const enAttente: Reussite[] = [];
 let hoteMonte = false;
 
 export function annoncerReussite(r: Reussite) {
   if (typeof window === "undefined") return;
+  if (!felicitationsActives()) return;
   if (!hoteMonte) {
     enAttente.push(r);
     return;
@@ -42,20 +75,26 @@ export function brancherHote(): () => void {
 /** Ce que rapporte une action : missions, badges, niveau. Rien s'il n'y a rien. */
 export function annoncerRecompenses(res: Partial<ActionResult> | null | undefined) {
   if (!res) return;
-  const xp = res.xp_gained ? ` · +${res.xp_gained} XP` : "";
+  // UNE CARTE PAR GESTE. Une première analyse en faisait tomber trois d'un
+  // coup (mission, badge, missions du jour), et un lecteur adulte s'en
+  // agaçait. Tout ce que le geste a rapporté tient sur une seule carte.
   const missions = res.mission_titles ?? [];
-  if (missions.length) {
-    annoncerReussite({
-      titre: missions.length > 1 ? `${missions.length} missions accomplies` : "Mission accomplie",
-      detail: missions.join(" · ") + xp,
-    });
-  } else if (res.missions_completed?.length) {
-    annoncerReussite({ titre: "Mission accomplie", detail: xp.replace(/^ · /, "") || undefined });
-  }
-  for (const b of res.new_badges ?? []) {
-    if (b?.name) annoncerReussite({ titre: "Nouveau badge", detail: b.name });
-  }
-  if (res.level_up && res.new_level) {
-    annoncerReussite({ titre: `Niveau ${res.new_level} atteint`, detail: "Continuez comme ça." });
-  }
+  const nbMissions = missions.length || (res.missions_completed?.length ?? 0);
+  const badges = (res.new_badges ?? []).map((b) => b?.name).filter((n): n is string => !!n);
+  const niveau = res.level_up && res.new_level ? res.new_level : null;
+  if (!nbMissions && !badges.length && !niveau) return;
+
+  let titre: string;
+  if (niveau && !nbMissions) titre = `Niveau ${niveau} atteint`;
+  else if (nbMissions > 1) titre = `${nbMissions} missions accomplies`;
+  else if (nbMissions === 1) titre = "Mission accomplie";
+  else titre = badges.length > 1 ? "Nouveaux badges" : "Nouveau badge";
+
+  const detail = [
+    ...missions,
+    ...badges.map((b) => `badge ${b}`),
+    niveau && nbMissions ? `niveau ${niveau}` : null,
+    res.xp_gained ? `+${res.xp_gained} XP` : null,
+  ].filter(Boolean).join(" · ");
+  annoncerReussite({ titre, detail: detail || undefined });
 }

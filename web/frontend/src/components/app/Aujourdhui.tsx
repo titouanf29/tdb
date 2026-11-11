@@ -22,7 +22,8 @@ const JOURS = ["D", "L", "M", "M", "J", "V", "S"];
 
 function phraseSerie(serie: number, toutFait: boolean): string {
   if (serie <= 0) return "Votre série commence aujourd'hui.";
-  if (serie === 1) return "Premier jour. Revenez demain pour lancer la série.";
+  // « Lancer la série » se lisait aussi comme la série de leçons.
+  if (serie === 1) return "Premier jour. Revenez demain, et ça fera deux jours d'affilée.";
   if (toutFait) return `Journée complète. Revenez demain pour passer à ${serie + 1} jours.`;
   return `Revenez demain pour passer à ${serie + 1} jours d'affilée.`;
 }

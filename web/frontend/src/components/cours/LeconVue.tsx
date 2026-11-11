@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { learnAPI } from "@/lib/api";
-import { chapitreDe, fiche, voisines } from "@/lib/cours/catalogue";
+import { MODULE_SERIE, chapitreDe, cleLecon, fiche, voisines } from "@/lib/cours/catalogue";
 import type { LeconSerie } from "@/lib/cours/types";
 import { Button, Text } from "@/components/design-system";
 import { Quiz } from "@/components/learn/Quiz";
@@ -21,8 +21,7 @@ const ROMAINS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
  * la vidéo. Avec un compte, la leçon terminée est gardée.
  */
 
-export const MODULE_SERIE = "serie";
-export const cleLecon = (n: number) => `lecon-${n}`;
+export { MODULE_SERIE, cleLecon };
 
 export function LeconVue({ lecon }: { lecon: LeconSerie }) {
   const f = fiche(lecon.numero)!;

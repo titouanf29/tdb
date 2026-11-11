@@ -61,7 +61,7 @@ async def _activite(user_id: int, lundi: date, lundi_suivant: date) -> dict:
     return {"jours": len(jours), "analyses": len(analyses), "lecons": n_lecons, "serie": serie}
 
 
-def lire(semaine: dict, activite: dict) -> dict:
+def lire(semaine: dict, activite: dict, ouvertes: int = 0) -> dict:
     """La phrase d'en-tête, les constats et le conseil, à partir des chiffres."""
     t = semaine["trades"]
     avec_stop = t - semaine["sans_stop"]
@@ -97,7 +97,8 @@ def lire(semaine: dict, activite: dict) -> dict:
         morceaux.append("sans analyse ni leçon")
     if activite["serie"] > 1:
         morceaux.append(f"série de {activite['serie']} jours d'affilée")
-    constats.append({"ton": "neutre", "texte": ", ".join(morceaux) + "."})
+    if t:
+        constats.append({"ton": "neutre", "texte": ", ".join(morceaux) + "."})
 
     # Un seul conseil, le plus utile d'abord.
     if t and semaine["sans_stop"]:
@@ -107,6 +108,11 @@ def lire(semaine: dict, activite: dict) -> dict:
         conseil = "Une position a perdu toute sa mise : avec du levier, un stop plus proche aurait fermé plus tôt, et plus petit."
     elif t and semaine["journal"] < t:
         conseil = "Notez chaque trade au journal, gagnant ou perdant : c'est en relisant qu'on voit ce qui se répète."
+    elif not t and ouvertes:
+        # « Prenez une petite position » à quelqu'un qui en porte déjà une :
+        # le conseil ne le regardait pas.
+        conseil = ("Vous portez une position ouverte : relisez son scénario d'entrée, et vérifiez que son stop "
+                   "est au bon endroit. Le journal est là pour noter ce que vous en pensez.")
     elif not t and activite["jours"]:
         conseil = "Prenez une petite position sur une analyse où Nimbo propose d'entrer : c'est de l'argent virtuel, l'erreur ne coûte rien."
     elif not activite["jours"]:
@@ -124,9 +130,9 @@ async def bilan(user: dict, lundi: date) -> dict:
     suivant = lundi + timedelta(days=7)
     fin = datetime(suivant.year, suivant.month, suivant.day, 9, tzinfo=PARIS)
     semaine = await _ma_semaine({**user, "user_type": "email"}, debut, fin)
-    semaine.pop("_ouvertes", None)
+    ouvertes = semaine.pop("_ouvertes", None) or []
     activite = await _activite(int(user["id"]), lundi, suivant)
-    lecture = lire(semaine, activite)
+    lecture = lire(semaine, activite, len(ouvertes) if isinstance(ouvertes, (list, tuple)) else int(bool(ouvertes)))
     await _ajouter_defi(int(user["id"]), lundi, lecture)
     return {"lundi": lundi.isoformat(), "semaine": semaine, "activite": activite, **lecture}
 

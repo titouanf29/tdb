@@ -17,6 +17,7 @@ import {
 } from "@/components/design-system";
 import { Choice, Toggle, type Option } from "@/components/settings/Choice";
 import { useLectureConfortable } from "@/lib/lecture";
+import { useFelicitations } from "@/lib/reussite";
 import { useCapTheme, type CapTheme } from "@/lib/capTheme";
 import { useProfile } from "@/lib/useProfile";
 import { NotificationsAppareil } from "@/components/app/NotificationsAppareil";
@@ -662,8 +663,8 @@ function TradingSection() {
 const MODES: Option<OrderMode>[] = [
   {
     value: "cfd",
-    label: "Montant × levier (CFD)",
-    detail: "Vous engagez une somme, le levier la multiplie. Liquidation quand la perte atteint la marge.",
+    label: "Au comptant, ou montant × levier (CFD)",
+    detail: "Levier ×1 : vous achetez des titres pour la somme engagée, comme chez un courtier classique. Au-delà, le levier la multiplie, avec liquidation quand la perte atteint la marge.",
   },
   {
     value: "turbo",
@@ -903,6 +904,7 @@ function AppearanceSection() {
   const { settings, saveSettings, isLoaded } = useSettings();
   const [animOn, setAnimOn] = useAnimationsEnabled();
   const [lecture, setLecture] = useLectureConfortable();
+  const [felicitations, setFelicitations] = useFelicitations();
   const { theme: capTheme, resolved, setTheme: setCapTheme } = useCapTheme();
   const [error, setError] = useState("");
 
@@ -980,6 +982,16 @@ function AppearanceSection() {
           Ce réglage est propre à ce navigateur. Les animations sont de toute
           façon désactivées si votre système demande de réduire le mouvement.
         </Text>
+      </Panel>
+
+      <Panel title="Les félicitations de Nimbo" hint="Les cartes qui apparaissent en bas de l'écran quand une mission est accomplie, un badge gagné ou un niveau passé.">
+        <Toggle
+          label="Afficher les cartes"
+          detail="Coupez-les si elles vous dérangent. Les points et les badges continuent de compter, et restent visibles dans le parcours."
+          checked={felicitations}
+          onChange={setFelicitations}
+        />
+        <Text size="caption" className="mt-4">Ce réglage est propre à ce navigateur.</Text>
       </Panel>
 
     </>

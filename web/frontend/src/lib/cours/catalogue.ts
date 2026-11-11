@@ -77,6 +77,10 @@ export const FICHES: FicheLecon[] = [
   { numero: 37, slug: "le-volume", titre: "Le volume : ce qu'il confirme", court: "Le volume", duree: "10 min", resume: "Ce qui s'est échangé pendant une bougie, et pourquoi une cassure avec du volume est plus crédible." },
 ];
 
+/** La clé sous laquelle le serveur garde une leçon de la série terminée. */
+export const MODULE_SERIE = "serie";
+export const cleLecon = (n: number) => `lecon-${n}`;
+
 export function fiche(numero: number): FicheLecon | undefined {
   return FICHES.find((f) => f.numero === numero);
 }

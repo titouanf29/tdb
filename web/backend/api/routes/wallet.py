@@ -75,6 +75,36 @@ async def _notify(numeric_id, type_: str, title: str, message: str, link: str, c
     await notifier(numeric_id, type_, title, message, link, cle)
 
 
+async def _journal_ouverture(user_id, symbol: str, direction: str, entry_price: float, quantity: float,
+                             amount: float, leverage: float, stop_loss, take_profit, created_at: str,
+                             instrument: str | None = None) -> None:
+    """La ligne du journal, écrite dès l'ouverture.
+
+    Deux visiteurs ont ouvert une position la veille et trouvé le journal
+    vide le lendemain : « le site a les deux moitiés et ne les écrit pas ».
+    Les faits de l'entrée sont notés tout de suite ; la clôture complète la
+    même ligne (voir _journal_trace), et la personne ajoute ce qu'elle seule
+    sait, avant comme après.
+    """
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        sens = "Achat" if direction == "LONG" else "Vente"
+        faits = f"{sens} de {fmt_eur(amount)}" + (f" avec un levier ×{leverage:g}" if leverage and leverage > 1 else "")
+        faits += f", entrée à {fmt_price(entry_price)}"
+        faits += f", stop à {fmt_price(stop_loss)}" if stop_loss is not None else ", sans stop"
+        faits += f", objectif à {fmt_price(take_profit)}" if take_profit is not None else ", sans objectif"
+        faits += "." if instrument != "turbo" else " (turbo)."
+        await execute_write(
+            """INSERT INTO trading_journal
+               (user_id, symbol, direction, timeframe, setup, entry_time, entry_price, quantity,
+                pre_trade_notes, created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (user_id, symbol, direction, None, "ouverture", created_at, entry_price, quantity, faits, now, now),
+        )
+    except Exception as exc:
+        print(f"[wallet] trace d'ouverture non écrite : {exc}")
+
+
 async def _journal_trace(user_id, rev: dict) -> int | None:
     """La trace au journal, écrite d'office à chaque clôture.
 
@@ -89,6 +119,21 @@ async def _journal_trace(user_id, rev: dict) -> int | None:
     try:
         now = datetime.now(timezone.utc).isoformat()
         ferme = rev.get("closed_by")
+        setup = ("stop" if ferme == "stop_loss" else "objectif" if ferme == "take_profit"
+                 else "liquidation" if ferme == "liquidation" else "manuel")
+        # La ligne écrite à l'ouverture, s'il y en a une : on la complète.
+        ouverte = await execute_query(
+            "SELECT id, pre_trade_notes FROM trading_journal WHERE user_id = ? AND symbol = ? AND setup = 'ouverture' "
+            "AND exit_time IS NULL ORDER BY id DESC LIMIT 1", (user_id, rev["symbol"]))
+        if ouverte:
+            avant = (ouverte[0].get("pre_trade_notes") or "").strip()
+            notes_avant = rev["pre_trade_notes"] if not avant else (avant if not rev["pre_trade_notes"] else f"{avant} {rev['pre_trade_notes']}")
+            await execute_write(
+                """UPDATE trading_journal SET setup = ?, exit_time = ?, exit_price = ?, risk_reward = ?, result = ?, pnl = ?,
+                   pre_trade_notes = ?, post_trade_notes = ?, updated_at = ? WHERE id = ? AND user_id = ?""",
+                (setup, rev["exit_time"], rev["exit_price"], rev["risk_reward"], rev["result"], rev["pnl"],
+                 notes_avant, rev["post_trade_notes"], now, int(ouverte[0]["id"]), user_id))
+            return int(ouverte[0]["id"])
         await execute_write(
             """INSERT INTO trading_journal
                (user_id, symbol, direction, timeframe, setup,
@@ -97,9 +142,7 @@ async def _journal_trace(user_id, rev: dict) -> int | None:
                 pre_trade_notes, post_trade_notes, screenshot,
                 created_at, updated_at)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (user_id, rev["symbol"], rev["direction"], None,
-             "stop" if ferme == "stop_loss" else "objectif" if ferme == "take_profit"
-             else "liquidation" if ferme == "liquidation" else "manuel",
+            (user_id, rev["symbol"], rev["direction"], None, setup,
              rev["entry_time"], rev["exit_time"],
              rev["entry_price"], rev["exit_price"], rev["quantity"],
              rev["risk_reward"], rev["result"], rev["pnl"],
@@ -702,6 +745,7 @@ async def open_position(
         )
 
     # Create position
+    cree_le = datetime.now(timezone.utc).isoformat()
     await execute_write(
         """INSERT INTO positions
            (user_id, symbol, direction, entry_price, quantity, amount, leverage,
@@ -710,7 +754,7 @@ async def open_position(
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?)""",
         (user_id, symbol, direction,
          current_price, quantity, montant, levier,
-         request.take_profit, request.stop_loss, datetime.now(timezone.utc).isoformat(),
+         request.take_profit, request.stop_loss, cree_le,
          instrument,
          turbo["unites"] if turbo else None,
          turbo["prix_titre"] if turbo else None,
@@ -725,6 +769,9 @@ async def open_position(
         "UPDATE wallet SET balance = ? WHERE user_id = ?",
         (new_balance, user_id)
     )
+
+    await _journal_ouverture(user_id, symbol, direction, current_price, quantity, montant, levier,
+                             request.stop_loss, request.take_profit, cree_le, instrument)
 
     return {
         "success": True,

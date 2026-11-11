@@ -325,7 +325,7 @@ export default function StrategiePage() {
               <div className="min-w-0">
                 <p className="text-[0.9rem] italic" style={{ color: "var(--cap-ink-3)", fontFamily: "var(--cap-font-display)" }}>Nimbo relit votre stratégie</p>
                 <p className="text-[1.1rem] font-semibold leading-snug" style={{ color: "var(--cap-ink)", fontFamily: "var(--cap-font-display)" }}>
-                  {bloquante ? "Il reste quelque chose à corriger." : avis.length ? "Testable, avec quelques remarques." : "Rien à redire, on peut tester."}
+                  {etatRelecture(bloquante, avis.length, sauvees.length > 0 && regles.conditions.length === 0)}
                 </p>
               </div>
             </div>
@@ -361,4 +361,16 @@ export default function StrategiePage() {
       )}
     </div>
   );
+}
+
+/**
+ * La phrase de Nimbo au-dessus de ses remarques. Un compositeur vide alors
+ * qu'une stratégie vient d'être enregistrée n'a rien « à corriger » : il
+ * attend la suivante.
+ */
+function etatRelecture(bloquante: boolean, nbAvis: number, videAvecSauvees: boolean): string {
+  if (videAvecSauvees) return "Composez une nouvelle stratégie ici, ou reprenez-en une ci-dessus avec « Modifier ».";
+  if (bloquante) return "Il reste quelque chose à corriger.";
+  if (nbAvis) return "Testable, avec quelques remarques.";
+  return "Rien à redire, on peut tester.";
 }

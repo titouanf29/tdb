@@ -30,20 +30,20 @@ const lecon: LeconSerie = {
       { t: "p", html: "Sans stop, rien n'arrête une perte : ni le prix, ni la plateforme. Il ne reste que votre volonté de fermer, au pire moment, quand la perte fait mal et qu'on espère un retour. C'est l'erreur la plus chère des débutants (leçon 20)." },
 
       { t: "h", texte: "Où le placer : là où votre idée devient fausse" },
-      { t: "p", html: "Un stop ne se place pas au hasard, ni à « 20 $ parce que c'est rond ». Il se place <b>là où votre raison d'entrer n'existe plus</b>. Les traders appellent ce point l'<span class=\"mot\">invalidation</span>. Vous achetez parce que le prix monte en faisant des creux de plus en plus hauts ? Si le prix repasse sous le dernier creux, cette hausse est cassée : votre idée est fausse. Le stop va donc <b>juste sous le dernier creux</b>." },
+      { t: "p", html: "Un stop ne se place pas au hasard, ni à « 20 $ parce que c'est rond ». Il se place <b>là où votre raison d'entrer n'existe plus</b>. Les traders appellent ce point l'<span class=\"mot\">invalidation</span>. Vous achetez parce que le prix monte en faisant des creux de plus en plus hauts ? Si le prix repasse sous le dernier creux, cette hausse est cassée : votre idée est fausse. Le stop va donc <b>juste sous le dernier <a href=\"/lecon/28\" class=\"cap-lien\">creux</a></b>." },
       {
         t: "scenes",
         titre: "Construire un plan, pièce par pièce",
         scenes: [
           { legende: "L'euro-dollar monte. Il vient de se replier, puis de repartir : vous achetez à <b>1,1000</b>.", cfg: { bougies: euro, jusqua: 44, marques: [{ i: 44, type: "achat", label: "Achat" }], niveaux: [ENTREE], unite: "heure" } },
           { legende: "Le dernier creux, à <b>1,0985</b> : tant que le prix reste au-dessus, la hausse tient.", cfg: { bougies: euro, jusqua: 44, marques: [{ i: 44, type: "achat", label: "Achat" }, { i: 36, type: "point" }], niveaux: [ENTREE], notes: [{ i: 36, prix: 1.0985, texte: "Dernier creux", dessous: true }], unite: "heure" } },
-          { legende: "Le <b>stop loss</b>, juste sous ce creux, à 1,0980 : 20 pips sous l'entrée. S'il est touché, votre idée était fausse.", cfg: { bougies: euro, jusqua: 44, marques: [{ i: 44, type: "achat", label: "Achat" }, { i: 36, type: "point" }], niveaux: [ENTREE, STOP], unite: "heure" } },
+          { legende: "Le <b>stop loss</b>, juste sous ce creux, à 1,0980 : 20 <a href=\"/lecon/17\" class=\"cap-lien\">pips</a> sous l'entrée. S'il est touché, votre idée était fausse.", cfg: { bougies: euro, jusqua: 44, marques: [{ i: 44, type: "achat", label: "Achat" }, { i: 36, type: "point" }], niveaux: [ENTREE, STOP], unite: "heure" } },
           { legende: "Le <b>take profit</b>, au dernier sommet, à 1,1040 : 40 pips au-dessus. Vous risquez 20 pips pour en viser 40.", cfg: { bougies: euro, jusqua: 44, marques: [{ i: 44, type: "achat", label: "Achat" }, { i: 22, type: "point", prix: 1.104 }], niveaux: [ENTREE, STOP, TP], unite: "heure" } },
           { legende: "En rouge, ce que vous acceptez de perdre ; en vert, ce que vous visez. La zone verte est deux fois plus haute : un ratio de <b>1 pour 2</b>.", cfg: { bougies: euro, jusqua: 44, niveaux: [ENTREE, STOP, TP], zones: [{ i0: 44, i1: 63, p0: 1.098, p1: 1.1, couleur: "var(--cap-down)" }, { i0: 44, i1: 63, p0: 1.1, p1: 1.104, couleur: "var(--cap-up)" }], unite: "heure" } },
           { legende: "La suite : le prix respire jusqu'à 1,0990, sans toucher le stop, puis atteint l'objectif. Ici, ça a marché. Rien ne le garantissait : c'est pour ça que le stop était là.", cfg: { bougies: euro, niveaux: [ENTREE, STOP, TP], zones: [{ i0: 44, i1: 63, p0: 1.098, p1: 1.1, couleur: "var(--cap-down)" }, { i0: 44, i1: 63, p0: 1.1, p1: 1.104, couleur: "var(--cap-up)" }], marques: [{ i: 57, type: "point", prix: 1.104 }], unite: "heure" } },
         ],
       },
-      { t: "p", html: "Laissez toujours <b>un peu de marge</b> sous le creux : quelques pips. Le prix revient souvent tester un creux du bout d'une mèche, et beaucoup de traders posent leur stop exactement dessus. Un stop collé au creux, ou au-dessus, saute pour rien." },
+      { t: "p", html: "Laissez toujours <b>un peu de marge</b> sous le creux : quelques pips. Le prix revient souvent tester un creux du bout d'une <a href=\"/lecon/3\" class=\"cap-lien\">mèche</a>, et beaucoup de traders posent leur stop exactement dessus. Un stop collé au creux, ou au-dessus, saute pour rien." },
       {
         t: "graphique",
         cfg: { bougies: euro, niveaux: [ENTREE, { prix: 1.0995, label: "Stop trop serré 1,0995", couleur: "var(--cap-down)", pointille: false, epaisseur: 2 }], marques: [{ i: 45, type: "croix", prix: 1.0995 }], surligne: [45], unite: "heure" },
@@ -58,7 +58,11 @@ const lecon: LeconSerie = {
       { t: "p", html: "Le <span class=\"mot\">ratio risque / rendement</span> (en anglais <em>risk/reward ratio</em>, écrit R:R) compare ce que vous risquez à ce que vous visez. Risquer 20 $ pour en viser 40, c'est <b>1 pour 2</b> ; risquer 20 $ pour en viser 60, c'est 1 pour 3." },
       {
         t: "exemple",
-        html: "Sur l'euro-dollar, vous achetez à <b>1,1000</b>. Le stop est à 1,0980 : <b>20 pips</b> de risque. L'objectif est à 1,1040 : <b>40 pips</b> visés. 40 ÷ 20 = 2 : le ratio est de <b>1 pour 2</b>. Avec 0,10 lot, un pip vaut 1 $ : vous risquez 20 $ pour en viser 40 $.",
+        html: "Sur l'euro-dollar, vous achetez à <b>1,1000</b>. Le stop est à 1,0980 : <b>20 pips</b> de risque. L'objectif est à 1,1040 : <b>40 pips</b> visés. 40 ÷ 20 = 2 : le ratio est de <b>1 pour 2</b>. Avec 0,10 <a href=\"/lecon/17\" class=\"cap-lien\">lot</a>, un pip vaut 1 $ : vous risquez 20 $ pour en viser 40 $.",
+      },
+      {
+        t: "exemple",
+        html: "Sur une action, en euros, c'est le même calcul. Vous achetez LVMH à <b>408,75 €</b>, stop à 390 € : <b>18,75 €</b> de risque par action. Objectif à 446,25 € : <b>37,50 €</b> visés. 37,50 ÷ 18,75 = 2 : <b>1 pour 2</b>. Avec 500 € engagés (1,22 action), vous risquez 23 € pour en viser 46 €.",
       },
       { t: "p", html: "Pourquoi c'est si important ? Parce qu'avec un ratio de 1 pour 2, <b>un seul gain compense deux pertes</b>. Vous n'avez pas besoin d'avoir raison à chaque fois, ni même une fois sur deux." },
       {

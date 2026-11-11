@@ -310,6 +310,8 @@ export interface ProfilePreferences {
   /** court | moyen | long — le rythme proposé au Parcours. */
   weekly_time: string | null;
   updated_at?: string | null;
+  /** Quand la fenêtre de bienvenue a été fermée ou terminée, sur n'importe quel appareil. */
+  bienvenue_vue?: string | null;
 
   // ── Les intentions ──────────────────────────────────────────────────────
   // Les trois champs ci-dessus orientent des écrans. Ceux-ci entrent dans le
@@ -1414,6 +1416,15 @@ export interface Analysis {
   figures?: FigureMoteur[];
   /** Ce que ce plan veut dire pour cette personne. Absent sans intentions. */
   personnel?: BlocPersonnel;
+  /** La dernière fois que cette personne a lu cette analyse, un autre jour :
+   *  ce qu'elle disait alors, pour voir ce qui a bougé depuis. */
+  derniere_lecture?: {
+    lu_le: string;
+    score: number | null;
+    trend: string | null;
+    propose: boolean;
+    prix: number | null;
+  };
   /** Technical verdict re-read with the profile's fundamental weight. Kept
    *  apart from `score`, which stays the verdict the scanner shares. */
   profile_score?: {
@@ -1773,6 +1784,8 @@ export interface Favorite {
   change: number;
   added_at: string;
   error?: boolean;
+  /** Le score vu à la dernière lecture de l'analyse par cette personne, et quand. */
+  lecture?: { score: number | null; lu_le: string } | null;
 }
 
 // Admin API
@@ -3943,6 +3956,8 @@ export interface ResultatStrategie {
     trades: number; taux_gagnants?: number; r_moyen?: number; r_total?: number;
     gain_moyen_r?: number; perte_moyenne_r?: number; facteur_profit?: number | null;
     pire_serie_r?: number; capital_final_pct?: number; baisse_max_pct?: number;
+    /** Le R moyen sur la première et la seconde moitié des trades : la stabilité de l'avantage. */
+    r_moyen_1re_moitie?: number | null; r_moyen_2e_moitie?: number | null;
     issues?: { objectif: number; stop: number; "durée": number }; duree_moyenne?: number;
     achat_conserve_pct?: number;
     courbe?: Array<{ date: string; capital: number; r: number; symbol: string }>;

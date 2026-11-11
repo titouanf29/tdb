@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 import { CHAPITRES, FICHES, ORDRE, fiche } from "@/lib/cours/catalogue";
+import { rangGlobal } from "@/lib/cours/liens";
 import { DISPONIBLES } from "@/lib/cours/lecons";
 import { Button, SegmentedControl, Text } from "@/components/design-system";
 import { MODULE_SERIE, cleLecon } from "./LeconVue";
@@ -17,6 +18,16 @@ const ROMAINS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
 
 export function Sommaire({ faites }: { faites?: Set<string> }) {
   const [vue, setVue] = useState<"chapitres" | "videos">("chapitres");
+  // « Je venais avec un mot, « stop », et j'ai dû lire les 37 lignes. »
+  const [recherche, setRecherche] = useState("");
+  const sansAccents = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const q = sansAccents(recherche.trim());
+  const trouvees = q.length >= 2
+    ? ORDRE.filter((n) => { const f = fiche(n)!; return sansAccents(`${f.titre} ${f.court} ${f.resume}`).includes(q); })
+    : null;
+  let bilanRecherche = "";
+  if (trouvees && trouvees.length === 0) bilanRecherche = "Aucune leçon ne parle de ça, avec ces mots. Essayez un mot plus court, ou le glossaire.";
+  else if (trouvees) bilanRecherche = `${trouvees.length} leçon${trouvees.length > 1 ? "s" : ""} pour « ${recherche.trim()} »`;
   const fait = (n: number) => faites?.has(`${MODULE_SERIE}/${cleLecon(n)}`) ?? false;
   const prochaine = faites ? ORDRE.find((n) => DISPONIBLES.has(n) && !fait(n)) : undefined;
   const nbFaites = faites ? ORDRE.filter(fait).length : 0;
@@ -64,6 +75,30 @@ export function Sommaire({ faites }: { faites?: Set<string> }) {
             </p>
           </div>
           <Button href={`/lecon/${prochaine}`} size="md">{nbFaites === 0 ? "Commencer" : "Reprendre"} <ArrowRight className="h-4 w-4" /></Button>
+        </div>
+      )}
+
+      <div className="mb-5">
+        <label htmlFor="cours-recherche" className="sr-only">Chercher dans les leçons</label>
+        <input
+          id="cours-recherche"
+          type="search"
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          placeholder="Chercher dans les leçons : stop, levier, bougie…"
+          className="w-full rounded-[12px] px-4 py-3 text-[0.95rem] outline-none focus:ring-2"
+          style={{ backgroundColor: "var(--cap-surface)", color: "var(--cap-ink)", boxShadow: "inset 0 0 0 1px var(--cap-line-strong)" }}
+        />
+      </div>
+
+      {trouvees && (
+        <div className="mb-8">
+          <Text size="small" className="mb-2">
+            {bilanRecherche}
+          </Text>
+          <ul className="[&>*+*]:border-t [&>*+*]:border-[color:var(--cap-line)]">
+            {trouvees.map((n) => <Ligne key={n} n={n} rang={String(rangGlobal(n))} />)}
+          </ul>
         </div>
       )}
 

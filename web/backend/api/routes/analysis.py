@@ -21,6 +21,7 @@ from .premium import is_user_premium, get_user_limits
 from ..database import execute_query, execute_write
 from ._prices import fetch_ohlcv, fetch_prices, prewarm_ohlcv
 from ._indicators import rsi_wilder, atr_wilder, adx_wilder, true_range, data_confidence
+from ._seances import cours_en_direct_utiles
 from ._universe import (EXTRA_CRYPTO, extend_market, classify,
                         resolve_universe, universe_summary,
                         resolve_zones, zones_summary)
@@ -877,7 +878,7 @@ def _tradeability(
     if _av:
         warnings.append(_av)
     if neutre:
-        blockers.append("Verdict neutre — le moteur ne voit pas de sens assez net pour proposer un trade")
+        blockers.append("Verdict neutre : le moteur ne voit pas de sens assez net pour proposer un trade")
     if vente_non_prouvee:
         blockers.append(
             "Score bas : ce n'est pas le moment d'acheter. Le moteur ne propose pas pour "
@@ -897,13 +898,13 @@ def _tradeability(
             "le setup rémunère mal le risque" if jusqua_obstacle else
             f"Rapport gain/risque de {nombre_fr(risk_reward, 1)} — sous 1,2, le setup rémunère mal le risque")
     if data_stale:
-        blockers.append("Données de marché périmées — le prix affiché ne reflète plus la séance")
+        blockers.append("Données de marché périmées : le prix affiché ne reflète plus la séance")
     if confidence < 40:
-        blockers.append(f"Confiance des données à {confidence} % — historique trop court pour conclure")
+        blockers.append(f"Confiance des données à {confidence} % : historique trop court pour conclure")
     if n_bars < 60:
-        blockers.append(f"Seulement {n_bars} bougies disponibles — insuffisant pour les indicateurs longs")
+        blockers.append(f"Seulement {n_bars} bougies disponibles : insuffisant pour les indicateurs longs")
     if vol_percentile is not None and vol_percentile >= 95:
-        blockers.append("Volatilité dans son centile extrême — tout stop devient une loterie")
+        blockers.append("Volatilité dans son centile extrême : tout stop devient une loterie")
 
     # L'EDGE HISTORIQUE NÉGATIF PÈSE ICI, et c'est le bon endroit.
     #
@@ -1945,6 +1946,20 @@ async def analyze_asset(
             except Exception as e:
                 logger.warning("bloc personnel indisponible pour %s : %s", symbol, e)
 
+            # ── Depuis la dernière lecture (_lectures.py) ──────────────────
+            # Le score et le verdict de la dernière fois qu'elle a ouvert cette
+            # analyse un autre jour, pour voir ce qui a bougé sans s'en souvenir.
+            try:
+                from ._lectures import relire
+                _score_lu = (result.get("profile_score") or {}).get("total", result["score"]["total"])
+                lecture = await relire(
+                    int(current_user["id"]), symbol, timeframe, _score_lu, result.get("trend"),
+                    bool(_propose), result["price"]["current"])
+                if lecture:
+                    result["derniere_lecture"] = lecture
+            except Exception as e:
+                logger.warning("dernière lecture indisponible pour %s : %s", symbol, e)
+
         return _sanitize(result)
 
     except HTTPException:
@@ -2645,7 +2660,7 @@ async def scan_market(
     live_px: dict = {}
     if not stream:
         try:
-            live_px = await fetch_prices(assets) or {}
+            live_px = (await fetch_prices(assets) or {}) if cours_en_direct_utiles(assets) else {}
         except Exception:
             live_px = {}
 
@@ -2819,12 +2834,20 @@ async def scan_market(
                 "timeframe": timeframe, "min_score": min_score, "seuil_achat": _seuil,
             }) + "\n"
 
-            yield _json.dumps({"type": "phase", "phase": "prices",
-                               "label": "Lecture des cours en direct"}) + "\n"
-            try:
-                live_px.update(await fetch_prices(assets) or {})
-            except Exception:
-                pass
+            # SÉANCES FERMÉES : PAS DE LECTURE EN DIRECT. Un vendredi soir,
+            # dix secondes à lire des cours qui n'ont pas bougé depuis la
+            # clôture, devant un écran à « 0 / 423 ». La dernière clôture est
+            # le cours ; on le dit, et on passe à l'analyse.
+            if cours_en_direct_utiles(assets):
+                yield _json.dumps({"type": "phase", "phase": "prices",
+                                   "label": "Lecture des cours en direct"}) + "\n"
+                try:
+                    live_px.update(await fetch_prices(assets) or {})
+                except Exception:
+                    pass
+            else:
+                yield _json.dumps({"type": "phase", "phase": "prices",
+                                   "label": "Séances fermées : cours de la dernière clôture"}) + "\n"
 
             yield _json.dumps({"type": "phase", "phase": "benchmarks",
                                "label": "Chargement des indices de référence"}) + "\n"

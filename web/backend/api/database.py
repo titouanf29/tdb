@@ -623,6 +623,9 @@ async def _init_postgres():
             ("lecture",        "TEXT"),
             ("connait",        "TEXT"),
             ("intentions_at",  "TEXT"),
+            # La fenêtre de bienvenue fermée, retenue côté compte et non par
+            # navigateur : elle revenait sur chaque nouvel appareil.
+            ("bienvenue_vue",  "TEXT"),
         ]:
             try:
                 await conn.execute(f"ALTER TABLE user_profile ADD COLUMN {col} {col_type}")
@@ -1140,6 +1143,9 @@ async def _init_sqlite():
             ("lecture",        "TEXT"),
             ("connait",        "TEXT"),
             ("intentions_at",  "TEXT"),
+            # La fenêtre de bienvenue fermée, retenue côté compte et non par
+            # navigateur : elle revenait sur chaque nouvel appareil.
+            ("bienvenue_vue",  "TEXT"),
         ]:
             try:
                 await db.execute(f"ALTER TABLE user_profile ADD COLUMN {col} {col_type}")

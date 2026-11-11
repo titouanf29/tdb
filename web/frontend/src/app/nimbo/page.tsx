@@ -61,6 +61,14 @@ export default function BilanNimboPage() {
               dire « sur 10 achats comparables » : frais compris, et le stop compté en premier quand une même
               séance touche les deux.
             </Text>
+            {/* À qui est ce bilan ? Un lecteur ne savait pas s'il lisait le sien
+                ou celui du site : c'est celui du site, toutes propositions
+                confondues, et il commence le jour de la première. */}
+            <Text size="small" className="mt-2">
+              Ce bilan est celui de tout le site : toutes mes propositions, à tout le monde, pas seulement les vôtres
+              {d?.depuis ? `, depuis le ${new Date(d.depuis).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}` : ""}.
+              Le passé plus long du moteur, lui, est le rejeu que cite chaque analyse.
+            </Text>
           </div>
         </header>
 

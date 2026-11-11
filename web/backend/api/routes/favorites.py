@@ -6,11 +6,14 @@ from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
+import logging
+
 from ..database import execute_query, execute_write
 from .auth import get_current_user
 from .premium import get_user_limits
 from .market import SYMBOL_NAMES
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -43,12 +46,25 @@ async def get_favorites(current_user: dict = Depends(get_current_user)):
     symbols = [f["symbol"] for f in favorites]
     prices = await fetch_prices(symbols)
 
+    # La dernière lecture de chaque actif par cette personne (_lectures.py) :
+    # le score qu'elle a vu, et quand. Une raison de rouvrir l'analyse.
+    lectures: dict[str, dict] = {}
+    try:
+        from ._lectures import init as init_lectures
+        await init_lectures()
+        for r in await execute_query(
+                "SELECT symbol, score, lu_le FROM analyses_lues WHERE user_id = ? ORDER BY lu_le", (user_id,)) or []:
+            lectures[str(r["symbol"]).upper()] = {"score": r["score"], "lu_le": r["lu_le"]}
+    except Exception as e:
+        logger.info("lectures des favoris indisponibles : %s", e)
+
     results = []
     for fav in favorites:
         sym = fav["symbol"]
         p = prices.get(sym, {})
         has_price = bool(p and p.get("price"))
         results.append({
+            "lecture": lectures.get(str(sym).upper()),
             "symbol": sym,
             # LE NOM, ET PAS SEULEMENT LE CODE. « CL=F » est un identifiant
             # Yahoo : il a sa place dans une URL, pas dans une phrase adressée

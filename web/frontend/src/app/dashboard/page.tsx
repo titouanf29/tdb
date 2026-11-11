@@ -6,6 +6,8 @@ import Link from "next/link";
 import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
 import { FaconDeTrader } from "@/components/dashboard/FaconDeTrader";
 import { Intention } from "@/components/dashboard/Intention";
+import { ProchaineLecon } from "@/components/dashboard/ProchaineLecon";
+import { ActionsRapides, Anneau, TuilesCompte } from "@/components/dashboard/Tuiles";
 import { lundiAPreparer, weekendOuvert } from "@/lib/semaine";
 import { useAuth } from "@/lib/AuthContext";
 import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
@@ -16,7 +18,7 @@ import {
   type TradingStats, type WalletBalance,
 } from "@/lib/api";
 import {
-  Button, CloudCurtain, DataList, DataRow, EmptyState, Heading, LigneDatee, MotsApp, Nimbo, Num, Panel,
+  CloudCurtain, DataList, DataRow, EmptyState, Heading, LigneDatee, MotsApp, Nimbo, Panel,
   Reveal, Text, Waypoint, WeatherBackdrop, WEATHER_LABEL,
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
@@ -30,6 +32,7 @@ import { PointDuMatin } from "@/components/app/PointDuMatin";
 import { Demain } from "@/components/app/Demain";
 import { InstallerApplication } from "@/components/app/InstallerApplication";
 import { useProfile } from "@/lib/useProfile";
+import { ilYA } from "@/lib/quand";
 
 /**
  * The signed-in home screen.
@@ -100,10 +103,6 @@ export default function DashboardPage() {
   const equity = balance ? (balance.total_equity ?? balance.balance + balance.positions_value) : 0;
   // Le solde compte jusqu'à sa valeur à l'arrivée, puis suit ses mises à jour.
   const equityAffichee = useCompteur(equity, animOn);
-  const pnl = balance?.total_pnl ?? 0;
-  // Against the starting stake, which is what "how am I doing" means — not
-  // against today's equity, which would flatter a losing account.
-  const pnlPct = equity - pnl !== 0 ? (pnl / (equity - pnl)) * 100 : 0;
 
   // The sky reads the assets this user follows, so it says something about
   // their day rather than about the market in general.
@@ -142,7 +141,10 @@ export default function DashboardPage() {
           conteneur flex ou grid, et c'est lui qui réalise la personnalisation. */}
       <div className="relative flex flex-col gap-8">
         {/* ── 1. Where you are ─────────────────────────────────────────── */}
-        <Reveal>
+        {/* `order-first` aussi : le parcours d'un compte neuf passe devant
+            tout, mais pas devant le bonjour. À égalité, l'ordre du DOM
+            tranche, et l'en-tête est écrit le premier. */}
+        <Reveal className="order-first">
           <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
             <div className="flex items-center gap-4">
             {/* Nimbo suit le ciel de l'accueil, qui suit les actifs suivis :
@@ -195,7 +197,21 @@ export default function DashboardPage() {
 
         {/* ── 2. One thing to do ───────────────────────────────────────── */}
         <Reveal delay={0.04}>
-          <NextStep intent={intent} positions={positions} favorites={favorites} />
+          <NextStep intent={intent} positions={positions} favorites={favorites} money={money} equity={equity} />
+        </Reveal>
+
+        {/* Les gestes du quotidien, à portée de main dès l'arrivée. */}
+        <Reveal delay={0.05}>
+          <ActionsRapides />
+        </Reveal>
+
+        {/* ── Demain, juste après la prochaine étape ─────────────────────
+            Ce qui attend à la prochaine séance : annonces, plans de Nimbo
+            encore ouverts sur les favoris, positions sans stop. Un visiteur
+            l'a trouvé « le bloc le plus utile de la page, et le dernier » :
+            il passe avant les missions. Il s'efface quand il n'a rien à dire. */}
+        <Reveal delay={0.06}>
+          <Demain />
         </Reveal>
 
         {/* La série de jours d'affilée et les missions du jour. */}
@@ -222,7 +238,7 @@ export default function DashboardPage() {
             parcours, « suivre » fait remonter les actifs suivis, « tester »
             garde le portefeuille en tête. Ce n'est pas un thème, c'est
             l'ordre dans lequel les choses arrivent sous les yeux. */}
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <Reveal delay={0.08} className={goal === "suivre" ? "order-2" : "order-1"}>
             {/* CE PANNEAU LIT LE WALLET, PAS LE PORTEFEUILLE. Il s'intitulait
                 « Votre portefeuille » et son lien menait à /portfolio, les
@@ -249,33 +265,11 @@ export default function DashboardPage() {
               }
               action={{ label: "Ouvrir le wallet", href: "/wallet" }}
             >
-              <Num className="text-[clamp(1.9rem,4vw,2.5rem)] font-medium leading-none">
-                {money(equityAffichee)}
-              </Num>
-              <Text size="caption" className="mt-2">Valeur totale</Text>
-
-              <div
-                className="cap-liste mt-5 grid grid-cols-3 gap-4 border-t pt-4"
-                style={{ borderColor: "var(--cap-line)" }}
-              >
-                <Figure
-                  value={`${pnl >= 0 ? "+" : ""}${money(pnl)}`}
-                  label={`${pnl >= 0 ? "+" : ""}${fr(pnlPct, 1)} %`}
-                  tone={pnl >= 0 ? "up" : "down"}
-                />
-                <Figure
-                  value={String(positions.length)}
-                  label={positions.length > 1 ? "positions" : "position"}
-                />
-                <Figure
-                  value={stats && stats.total_trades > 0 ? `${fr(stats.win_rate, 0)} %` : "—"}
-                  label={
-                    stats && stats.total_trades > 0
-                      ? `sur ${stats.total_trades} trades`
-                      : "aucun trade"
-                  }
-                />
-              </div>
+              {/* LES CHIFFRES EN TUILES. Le solde et trois chiffres alignés
+                  deviennent quatre tuiles qui se soulèvent au survol, avec
+                  la courbe du compte et celle des positions : le geste d'un
+                  tableau de bord « en verre », sur des surfaces opaques. */}
+              <TuilesCompte equity={equityAffichee} stats={stats} positions={positions} money={money} />
 
               {positions.length > 0 && (
                 <div className="mt-5 border-t pt-2" style={{ borderColor: "var(--cap-line)" }}>
@@ -288,8 +282,15 @@ export default function DashboardPage() {
                         // ouvrir une nouvelle : cliquer sur ce qu'on possède
                         // déjà proposait d'acheter autre chose.
                         href="/wallet"
-                        label={p.symbol}
-                        sub={`${p.direction === "LONG" ? "Achat" : "Vente"} · ${money(p.amount)}`}
+                        // Le nom, le code en second : « LVMH » se lit, « MC.PA » se décode.
+                        label={p.name || p.symbol}
+                        // « +0,00 % » à côté d'un actif à +3,3 % se lisait comme
+                        // une contradiction : la séance de l'actif est dite ici.
+                        sub={[
+                          p.name ? p.symbol : null,
+                          `${p.direction === "LONG" ? "Achat" : "Vente"} · ${money(p.amount)}`,
+                          p.day_change_percent != null ? `séance ${p.day_change_percent >= 0 ? "+" : ""}${fr(p.day_change_percent, 1)} %` : null,
+                        ].filter(Boolean).join(" · ")}
                         change={
                           p.unrealized_pnl != null && p.amount
                             ? (p.unrealized_pnl / p.amount) * 100
@@ -322,7 +323,13 @@ export default function DashboardPage() {
                     <DataRow
                       key={f.symbol}
                       href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
-                      label={f.symbol}
+                      label={f.name || f.symbol}
+                      // Le code, et le score vu à la dernière lecture : une
+                      // raison de rouvrir l'analyse, « il était à 58 hier ».
+                      sub={[
+                        f.name && f.name !== f.symbol ? f.symbol : null,
+                        f.lecture?.score != null ? `score ${Math.round(f.lecture.score)} ${ilYA(f.lecture.lu_le)}` : null,
+                      ].filter(Boolean).join(" · ") || undefined}
                       value={formatCours(f.price, f.symbol)}
                       change={f.change}
                     />
@@ -358,43 +365,18 @@ export default function DashboardPage() {
           <Intention />
         </Reveal>
 
-        {/* ── 4 ter. Demain ──────────────────────────────────────────────
-            Ce qui attend à la prochaine séance : annonces, plans de Nimbo
-            encore ouverts sur les favoris, positions sans stop. Le panneau
-            s'efface quand il n'a rien de particulier à dire. */}
-        <Reveal delay={0.15}>
-          <Demain />
-        </Reveal>
 
         {/* ── 5. Le démarrage guidé et le parcours ─────────────────────── */}
         {/* « Votre premier parcours » monte en tête tant que le compte n'a
             rien fait : le bloc qui s'appelle « premier » était le dernier de
             la page. */}
         <Reveal delay={0.16} className={goal === "comprendre" || (positions.length === 0 && (stats?.total_trades ?? 0) === 0) ? "order-first" : ""}>
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <ParcoursNimbo aUnePosition={positions.length > 0 || (stats?.total_trades ?? 0) > 0} />
-            <Panel
-              title="Continuer le parcours"
-              hint="Court, concret, et toujours reprenable là où vous l'avez laissé."
-              action={{ label: "Ouvrir le parcours", href: "/learn" }}
-            >
-              <Text size="small">
-                Les bases, puis les indicateurs, puis la gestion du risque,
-                dans cet ordre, parce que chacun n&apos;a de sens qu&apos;avec
-                le précédent.
-              </Text>
-              <div className="cap-liste mt-4 flex flex-wrap gap-2">
-                {["Lire un graphique", "Tendance et momentum", "Dimensionner une position"].map((c) => (
-                  <span
-                    key={c}
-                    className="cap-puce rounded-[9px] px-2.5 py-1.5 text-[0.8rem]"
-                    style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink-2)" }}
-                  >
-                    {c}
-                  </span>
-                ))}
-              </div>
-            </Panel>
+            {/* La prochaine leçon par son nom, pas une description du
+                parcours : c'est ce qu'on lit le soir pour savoir quoi faire
+                en dix minutes. */}
+            <ProchaineLecon aUnePosition={positions.length > 0} />
           </div>
         </Reveal>
       </div>
@@ -429,26 +411,6 @@ function useCompteur(cible: number, actif: boolean): number {
 
 /* ── Bits ─────────────────────────────────────────────────────────────────── */
 
-function Figure({
-  value,
-  label,
-  tone = "ink",
-}: {
-  value: string;
-  label: string;
-  tone?: "ink" | "up" | "down";
-}) {
-  return (
-    <div className="min-w-0">
-      <Num tone={tone} className="block truncate text-[1.05rem] font-medium leading-none">
-        {value}
-      </Num>
-      <span className="mt-1.5 block truncate text-[0.76rem]" style={{ color: "var(--cap-ink-3)" }}>
-        {label}
-      </span>
-    </div>
-  );
-}
 
 /**
  * The ambient-animation switch.
@@ -527,15 +489,40 @@ function WeatherToggle({
  * recommendation that says the same thing every morning stops being read by
  * the third one.
  */
+/**
+ * « Votre position LVMH vaut 512 € (+2,4 %), à 4,6 % au-dessus de son stop. »
+ * Le nom, la valeur, et la distance au niveau qui compte, en une phrase.
+ */
+function etatPosition(p: Position, money: (v: number) => string): string {
+  const nom = p.name || p.symbol;
+  const pnl = p.unrealized_pnl;
+  const valeur = pnl != null ? money(p.amount + pnl) : money(p.amount);
+  const pct = p.pnl_percent != null ? ` (${p.pnl_percent >= 0 ? "+" : ""}${fr(p.pnl_percent, 1)} %)` : "";
+  let niveau = "";
+  if (p.stop_loss != null && p.current_price) {
+    const d = Math.abs((p.current_price - p.stop_loss) / p.current_price) * 100;
+    const dessus = p.direction === "LONG" ? p.current_price > p.stop_loss : p.current_price < p.stop_loss;
+    niveau = dessus ? `, à ${fr(d, 1)} % de son stop` : ", sous son stop";
+  } else if (p.instrument !== "turbo") {
+    niveau = ", sans stop";
+  }
+  return `Votre position ${nom} vaut ${valeur}${pct}${niveau}.`;
+}
+
 function NextStep({
   intent,
   positions,
   favorites,
+  money,
+  equity,
 }: {
   intent: DailyIntentResult | null;
   positions: Position[];
   favorites: Favorite[];
+  money: (v: number) => string;
+  equity: number;
 }) {
+  const partEngagee = equity > 0 ? Math.min(100, Math.round((positions.reduce((a, p) => a + p.amount, 0) / equity) * 100)) : 0;
   const suggestion = useMemo(() => {
     const picked = (intent as unknown as { assets?: { symbol: string }[] })?.assets?.[0];
 
@@ -552,14 +539,27 @@ function NextStep({
     if (weekendOuvert()) {
       const sansStop = positions.filter((p) => p.stop_loss == null && p.instrument !== "turbo").length;
       const crypto = positions.filter((p) => /-(USD|EUR)$/.test(p.symbol)).length;
-      const corps =
-        sansStop > 0
-          ? `${sansStop} de vos positions ${sansStop > 1 ? "restent" : "reste"} sans stop pendant le week-end. On commence par là, puis votre semaine, l'agenda macro et l'actualité de vos actifs.`
-          : positions.length > 0
-            ? `Vous gardez ${positions.length} position${positions.length > 1 ? "s" : ""} ce week-end${crypto ? `, dont ${crypto} en crypto qui continue${crypto > 1 ? "nt" : ""} de coter` : ""}. Votre semaine, l'agenda macro et l'actualité de vos actifs, au même endroit.`
-            : favorites.length > 0
-              ? `Ce qu'ont fait vos ${favorites.length} actifs suivis, les annonces économiques qui arrivent et l'actualité qui les touche.`
-              : "Votre semaine, les annonces économiques qui arrivent et l'actualité des marchés, pendant qu'aucune séance ne vous presse.";
+      /* UNE SEULE POSITION : ON LA DÉCRIT. « Vous gardez 1 position ce
+         week-end » obligeait à descendre trois écrans pour savoir si elle
+         allait bien. Son nom, sa valeur, sa distance au stop, et le fait
+         qu'il n'y a rien à faire tant que les marchés sont fermés. */
+      const seule = positions.length === 1 ? etatPosition(positions[0], money) : null;
+      const suite = "Votre semaine, l'agenda macro et l'actualité de vos actifs, au même endroit.";
+      let corps: string;
+      if (sansStop > 0 && seule) {
+        corps = `${seule} Elle n'a pas de stop : c'est ce qu'il faut poser avant lundi. Puis votre semaine, l'agenda macro et l'actualité de vos actifs.`;
+      } else if (sansStop > 0) {
+        corps = `${sansStop} de vos positions ${sansStop > 1 ? "restent" : "reste"} sans stop pendant le week-end. On commence par là, puis votre semaine, l'agenda macro et l'actualité de vos actifs.`;
+      } else if (seule) {
+        corps = `${seule} Rien à faire tant que les marchés sont fermés. ${suite}`;
+      } else if (positions.length > 0) {
+        const enCrypto = crypto ? `, dont ${crypto} en crypto qui continue${crypto > 1 ? "nt" : ""} de coter` : "";
+        corps = `Vous gardez ${positions.length} position${positions.length > 1 ? "s" : ""} ce week-end${enCrypto}. ${suite}`;
+      } else if (favorites.length > 0) {
+        corps = `Ce qu'ont fait vos ${favorites.length} actifs suivis, les annonces économiques qui arrivent et l'actualité qui les touche.`;
+      } else {
+        corps = "Votre semaine, les annonces économiques qui arrivent et l'actualité des marchés, pendant qu'aucune séance ne vous presse.";
+      }
       return {
         eyebrow: "Le week-end",
         title: `Préparez la semaine du ${lundiAPreparer()}.`,
@@ -607,12 +607,13 @@ function NextStep({
       const { p, c } = classees[0];
       const pct = p.pnl_percent;
 
+      const etat = etatPosition(p, money);
       const corps =
         c && c.part >= 0.7
-          ? `Le cours a parcouru ${Math.round(c.part * 100)} % de la distance qui sépare votre entrée de votre ${c.vers}. C'est le moment de décider, pas de subir.`
+          ? `${etat} Le cours a parcouru ${Math.round(c.part * 100)} % de la distance qui sépare votre entrée de votre ${c.vers}. C'est le moment de décider, pas de subir.`
           : pct != null && Math.abs(pct) >= 3
-            ? `Elle est à ${pct >= 0 ? "+" : ""}${fr(pct, 1)} % depuis l'entrée. Vérifiez que le scénario tient encore, et que le stop est toujours au bon endroit.`
-            : "Rien d'urgent dessus aujourd'hui. Relisez quand même le scénario d'entrée : c'est ce qui vous dira quand sortir.";
+            ? `${etat} Vérifiez que le scénario tient encore, et que le stop est toujours au bon endroit.`
+            : `${etat} Rien d'urgent dessus aujourd'hui. Relisez quand même le scénario d'entrée : c'est ce qui vous dira quand sortir.`;
 
       return {
         eyebrow: "Votre prochaine étape",
@@ -669,7 +670,7 @@ function NextStep({
       cta: "Commencer",
       href: "/analysis?symbol=AAPL",
     };
-  }, [intent, positions, favorites]);
+  }, [intent, positions, favorites, money]);
 
   return (
     <section
@@ -694,6 +695,10 @@ function NextStep({
           style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)" }} />
       </div>
 
+      {/* L'ANNEAU DE L'EXPOSITION, à droite du texte : la part du capital
+          qui travaille, le geste de la grande tuile d'un tableau « en verre ». */}
+      <div className="relative flex items-start justify-between gap-5">
+      <div className="min-w-0 flex-1">
       <div className="relative flex items-center gap-2.5">
         <span className="relative inline-flex">
           <span aria-hidden className="cap-app-onde absolute inset-0 rounded-full" style={{ boxShadow: "0 0 0 1.5px var(--cap-amber)" }} />
@@ -701,7 +706,7 @@ function NextStep({
         </span>
         <span
           className="text-[0.75rem] font-medium uppercase tracking-[0.15em]"
-          style={{ color: "rgba(232,237,241,0.62)" }}
+          style={{ color: "rgba(232,237,241,0.82)" }}
         >
           {suggestion.eyebrow}
         </span>
@@ -734,6 +739,21 @@ function NextStep({
           {suggestion.cta}
           <ArrowRight className="cap-fleche h-4 w-4 transition-transform group-hover:translate-x-1" style={{ color: "var(--cap-amber-ink)" }} />
         </Link>
+        {/* « À 4,6 % de son stop » : le mot mène à la leçon qui l'explique. */}
+        {positions.length > 0 && (
+          <Link href="/lecon/7" className="ml-4 inline-flex items-center gap-1.5 text-[0.85rem] underline underline-offset-[5px]"
+            style={{ color: "rgba(232,237,241,0.78)", textDecorationColor: "rgba(232,237,241,0.35)" }}>
+            Le stop et l&apos;objectif, expliqués en 14 min
+          </Link>
+        )}
+      </div>
+      </div>
+      {positions.length > 0 && equity > 0 && (
+        <>
+          <div className="hidden sm:block"><Anneau pct={partEngagee} libelle="engagé" size={124} /></div>
+          <div className="sm:hidden"><Anneau pct={partEngagee} libelle="engagé" size={84} /></div>
+        </>
+      )}
       </div>
     </section>
   );

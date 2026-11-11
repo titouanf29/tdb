@@ -20,7 +20,7 @@ const CACHE_KEY = "tdb_profile_prefs";
 const EMPTY: ProfilePreferences = {
   goal: null, markets: [], weekly_time: null,
   mise_eur: null, perte_max_pct: null, disponibilite: null,
-  reaction: null, lecture: null, connait: [], intentions_at: null,
+  reaction: null, lecture: null, connait: [], intentions_at: null, bienvenue_vue: null,
 };
 
 function readCache(): ProfilePreferences {
@@ -43,6 +43,7 @@ function readCache(): ProfilePreferences {
       lecture: v.lecture ?? null,
       connait: Array.isArray(v.connait) ? v.connait : [],
       intentions_at: v.intentions_at ?? null,
+      bienvenue_vue: v.bienvenue_vue ?? null,
     };
   } catch {
     return EMPTY;

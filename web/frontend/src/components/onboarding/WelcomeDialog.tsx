@@ -139,6 +139,9 @@ export function WelcomeDialog({
    */
   const close = () => {
     try { localStorage.setItem(cleFermeture(user?.id), "1"); } catch { /* navigation privée */ }
+    // Retenu aussi côté compte : « je préfère découvrir seul » vaut pour tous
+    // les appareils, pas pour ce seul navigateur.
+    if (!profile.bienvenue_vue) save({ bienvenue_vue: new Date().toISOString() }).catch(() => {});
     onClose();
   };
 

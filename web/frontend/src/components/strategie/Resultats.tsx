@@ -41,6 +41,45 @@ function Chiffre({ valeur, legende, ton }: { valeur: string; legende: string; to
   );
 }
 
+const pos = (x: number, d: number) => `${x >= 0 ? "+" : ""}${v(x, d)}`;
+const dateFr = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
+
+function lignePeriode(r: ResultatStrategie): string | null {
+  const debuts = r.par_actif.map((a) => a.debut).filter((d): d is string => !!d).sort();
+  const fins = r.par_actif.map((a) => a.fin).filter((d): d is string => !!d).sort();
+  const debut = debuts[0], fin = fins[fins.length - 1];
+  if (!debut || !fin) return null;
+  const annees = Math.max(0.25, (new Date(fin).getTime() - new Date(debut).getTime()) / (365.25 * 86_400_000));
+  const pct = r.stats.capital_final_pct;
+  const parAn = pct != null ? `, ${pos((Math.pow(1 + pct / 100, 1 / annees) - 1) * 100, 1)} % par an` : "";
+  return `Période testée : de ${dateFr(debut)} à ${dateFr(fin)}, soit ${v(annees, 1)} an${annees >= 2 ? "s" : ""}${parAn}.`;
+}
+
+function ligneMoities(a: number, b: number): string {
+  let lecture = "l'avantage a tenu d'un bout à l'autre";
+  if (a <= 0 && b <= 0) lecture = "aucune moitié n'a rapporté";
+  else if (a > 0 && b < a / 2) lecture = "l'avantage s'est effrité sur la seconde moitié : à ne pas prendre pour acquis";
+  else if (b > 0 && a < b / 2) lecture = "l'avantage est surtout récent : trop tôt pour dire s'il tient";
+  return `Première moitié des trades : ${pos(a, 2)} R par trade ; seconde moitié : ${pos(b, 2)} R. Autrement dit, ${lecture}.`;
+}
+
+function Stabilite({ r }: { r: ResultatStrategie }) {
+  const s = r.stats;
+  const lignes: string[] = [];
+  const periode = lignePeriode(r);
+  if (periode) lignes.push(periode);
+  if (s.r_moyen_1re_moitie != null && s.r_moyen_2e_moitie != null) lignes.push(ligneMoities(s.r_moyen_1re_moitie, s.r_moyen_2e_moitie));
+  if (s.facteur_profit != null) lignes.push(`Facteur de profit ${v(s.facteur_profit, 2)} : les gains font ${v(s.facteur_profit, 2)} fois les pertes.`);
+  if (s.pire_serie_r != null) lignes.push(`Pire série : ${v(s.pire_serie_r, 1)} R d'affilée, ce qu'il faut pouvoir encaisser sans changer les règles.`);
+  if (s.trades < 100) lignes.push(`${s.trades} trades, c'est peu : un résultat se juge sur une centaine au moins, et sur plus d'actifs que de chance.`);
+  if (lignes.length === 0) return null;
+  return (
+    <ul className="cap-liste mt-4 space-y-1.5">
+      {lignes.map((l) => <li key={l}><Text size="small" as="span">{l}</Text></li>)}
+    </ul>
+  );
+}
+
 export function Resultats({ r, risque, rejeu }: { r: ResultatStrategie; risque: number; rejeu?: React.ReactNode }) {
   const s = r.stats;
   const signe = (x?: number) => (x == null ? "—" : `${x >= 0 ? "+" : ""}${v(x, 1)}`);
@@ -73,6 +112,11 @@ export function Resultats({ r, risque, rejeu }: { r: ResultatStrategie; risque: 
               moyenne de {signe(s.perte_moyenne_r)} R.
             </Text>
           )}
+          {/* CE QUE LE SERVEUR SAVAIT ET QUE LA PAGE TAISAIT : la période, le
+              rendement par an, la stabilité de l'avantage entre la première et
+              la seconde moitié des trades, le facteur de profit, la pire série.
+              « Un backtest sans ces lignes est un chiffre marketing. » */}
+          <Stabilite r={r} />
         </Panel>
       )}
 
