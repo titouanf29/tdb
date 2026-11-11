@@ -18,7 +18,7 @@ import {
   type TradingStats, type WalletBalance,
 } from "@/lib/api";
 import {
-  Button, CloudCurtain, DataList, DataRow, EmptyState, Heading, LigneDatee, MotsApp, Nimbo, Num, Panel,
+  CloudCurtain, DataList, DataRow, EmptyState, Heading, LigneDatee, MotsApp, Nimbo, Panel,
   Reveal, Text, Waypoint, WeatherBackdrop, WEATHER_LABEL,
   conditionFromChange, useAnimationsEnabled,
 } from "@/components/design-system";
