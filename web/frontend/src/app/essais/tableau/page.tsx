@@ -9,7 +9,7 @@ import {
 } from "@/lib/api";
 import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
 import { useAuth } from "@/lib/AuthContext";
-import { Eyebrow, Heading, LigneDatee, Num, Panel, ScoreDial, Text, WeatherBackdrop, useAnimationsEnabled } from "@/components/design-system";
+import { Eyebrow, Heading, LigneDatee, Num, Panel, Text, WeatherBackdrop, useAnimationsEnabled } from "@/components/design-system";
 import { getAssetName } from "@/lib/assetInfo";
 
 /**
@@ -42,6 +42,27 @@ function Courbe({ points, tone = "ink" }: { points: number[]; tone?: "ink" | "up
       <path d={`${d} L${w},${h} L0,${h} Z`} fill={couleur} opacity="0.12" />
       <path d={d} fill="none" stroke={couleur} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
+  );
+}
+
+/** L'anneau de la grande tuile : clair sur l'encre, un point ambre au bout de l'arc. */
+function Anneau({ pct, libelle }: { pct: number; libelle: string }) {
+  const r = 52, c = 2 * Math.PI * r, part = Math.max(0, Math.min(100, pct)) / 100;
+  const angle = -Math.PI / 2 + part * 2 * Math.PI;
+  const bx = 64 + r * Math.cos(angle), by = 64 + r * Math.sin(angle);
+  return (
+    <div className="relative shrink-0" style={{ width: 132, height: 132 }}>
+      <svg viewBox="0 0 128 128" className="h-full w-full" role="img" aria-label={`${pct} % ${libelle}`}>
+        <circle cx="64" cy="64" r={r} fill="none" stroke="rgba(246,242,234,0.16)" strokeWidth="6" />
+        <circle cx="64" cy="64" r={r} fill="none" stroke="#F6F2EA" strokeWidth="6" strokeLinecap="round"
+          strokeDasharray={`${c * part} ${c}`} transform="rotate(-90 64 64)" style={{ transition: "stroke-dasharray var(--cap-dur-3) var(--cap-ease)" }} />
+        {part > 0 && <circle cx={bx} cy={by} r="5" fill="var(--cap-ambre)" />}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="cap-num text-[1.9rem] font-medium leading-none" style={{ color: "#F6F2EA" }}>{pct} %</span>
+        <span className="mt-1 text-[0.78rem]" style={{ color: "rgba(232,237,241,0.66)" }}>{libelle}</span>
+      </div>
+    </div>
   );
 }
 
@@ -183,11 +204,7 @@ export default function EssaiTableau() {
                     ))}
                   </div>
                 </div>
-                <div className="shrink-0 rounded-full p-2" style={{ backgroundColor: "rgba(246,242,234,0.06)" }}>
-                  <div style={{ filter: "invert(1) hue-rotate(180deg)" }}>
-                    <ScoreDial score={partEngagee} size={124} label="engagé" />
-                  </div>
-                </div>
+                <Anneau pct={partEngagee} libelle="engagé" />
               </div>
               <div className="mt-6">
                 <Link href="/wallet" className="group inline-flex h-11 items-center gap-2.5 rounded-[12px] px-5 text-[0.925rem] font-semibold transition-transform hover:-translate-y-px"
