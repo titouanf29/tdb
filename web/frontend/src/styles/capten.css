@@ -1051,3 +1051,13 @@ html.lecture-confortable .cap-meteo { display: none; }
 html.lecture-confortable .cap [class*="text-[0.6"], html.lecture-confortable .cap [class*="text-[0.7"],
 html.lecture-confortable .cap [class*="text-[0.8rem]"] { font-size: 0.88rem !important; }
 html.lecture-confortable .cap :is(p, li, dd) { line-height: 1.7; }
+
+/* ── Le relief au survol (essai « tableau en relief ») ─────────────────────
+   Une tuile se soulève de trois pixels et prend un peu d'ombre quand le
+   pointeur passe dessus : le geste d'un tableau « en verre », sans le verre.
+   Sur un écran tactile il n'y a pas de survol, rien ne bouge. */
+.cap .cap-tuile { transition: transform var(--cap-dur-1) var(--cap-ease), box-shadow var(--cap-dur-1) var(--cap-ease); }
+@media (hover: hover) {
+  .cap .cap-tuile:hover { transform: translateY(-3px); box-shadow: inset 0 0 0 1px var(--cap-line-strong), 0 10px 24px rgba(11, 23, 38, 0.10); }
+}
+.anim-off .cap-tuile, .anim-off .cap-tuile:hover { transition: none; transform: none; }
