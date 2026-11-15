@@ -213,12 +213,39 @@ export function getTimeUntilChange(marketKey: string): string {
       nextDay = (nextDay + 1) % 7;
     }
 
+    // L'HEURE EST CELLE DE PARIS. « Ouvre lun à 09:30 » pour New York se lisait
+    // à côté de « il rouvre lundi vers 15 h 30 » sur les cartes du scanner : la
+    // même ouverture, deux heures différentes sur la même page. L'écran parle
+    // à quelqu'un en France ; l'heure locale de la place reste dans l'infobulle
+    // des horaires.
     const dayNamesFr = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
+    const heure = heureDeParis(config.timezone, localTime, daysAhead, openH, openM);
+    const precision = config.timezone === "Europe/Paris" ? "" : ", heure de Paris";
     if (daysAhead === 1) {
-      return `Ouvre demain à ${config.openTime}`;
+      return `Ouvre demain à ${heure}${precision}`;
     }
-    return `Ouvre ${dayNamesFr[nextDay]} à ${config.openTime}`;
+    return `Ouvre ${dayNamesFr[nextDay]} à ${heure}${precision}`;
   }
 
   return "";
+}
+
+/** Le décalage, en minutes, entre l'heure murale d'un fuseau et l'heure UTC à un instant donné. */
+function decalageMinutes(tz: string, instant: Date): number {
+  const mur = new Date(instant.toLocaleString("en-US", { timeZone: tz }));
+  const utc = new Date(instant.toLocaleString("en-US", { timeZone: "UTC" }));
+  return Math.round((mur.getTime() - utc.getTime()) / 60000);
+}
+
+/**
+ * « 15:30 » : l'ouverture d'une place, dans `joursPlusTard` jours à `h:m` heure
+ * locale de la place, exprimée à l'heure de Paris. Le décalage est pris à
+ * l'instant de l'ouverture elle-même, pas maintenant : entre fin octobre et
+ * début novembre, Paris et New York ne changent pas d'heure la même semaine.
+ */
+function heureDeParis(tz: string, localeMaintenant: Date, joursPlusTard: number, h: number, m: number): string {
+  const approx = new Date(Date.UTC(
+    localeMaintenant.getFullYear(), localeMaintenant.getMonth(), localeMaintenant.getDate() + joursPlusTard, h, m));
+  const instant = new Date(approx.getTime() - decalageMinutes(tz, approx) * 60000);
+  return instant.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
 }

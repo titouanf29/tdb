@@ -106,6 +106,10 @@ function AuthShell({
   // Redirect unauthenticated users — only runs on auth/protected pages
   useEffect(() => {
     if (isAuthPage) return;
+    // Une adresse inconnue n'est pas une page protégée : la page « introuvable »
+    // (qui pose cette marque avant que cet effet ne tourne) reste visible au lieu
+    // d'envoyer le visiteur sans compte vers la connexion.
+    if (document.documentElement.hasAttribute("data-introuvable")) return;
     if (!isLoading && !isAuthenticated) {
       router.push("/login");
     }

@@ -26,7 +26,7 @@ from ._universe import (EXTRA_CRYPTO, extend_market, classify,
                         resolve_universe, universe_summary,
                         resolve_zones, zones_summary)
 from ._intent import parse as parse_intent
-from ._opportunity import describe as describe_opportunity
+from ._opportunity import describe as describe_opportunity, accorder_repere
 from ._confluence import contexte_technique
 from ._calibrage import probabilites
 from ._evenements import pendant_le_plan
@@ -2639,6 +2639,9 @@ async def scan_market(
                 "macd_signal":   "HAUSSIER" if macd_above else "BAISSIER",
                 "support":       _px(recent_low),
                 "resistance":    _px(recent_high),
+                # Le repère de la phrase actionnable : Nimbo le relit face au stop
+                # qu'il propose (accorder_repere).
+                "ema20":         round(ema20_last, 6),
                 "near_breakout": near_breakout,
                 "pct_from_high": round(pct_from_high, 1),
                 "market_regime": (_ctx or {}).get("regime"),
@@ -2784,6 +2787,12 @@ async def scan_market(
             "rr": rk.get("risk_reward") if n.get("propose") else None,
         }
         r["sens"] = n.get("sens") or "aucun"
+        # La phrase du repère, accordée au plan affiché : un stop au-dessus de
+        # la moyenne « à tenir », ou un achat sous la moyenne « à repasser »,
+        # se disent au lieu de se contredire.
+        r["action"] = accorder_repere(
+            r.get("action") or "", ema20=r.get("ema20"), price=float(r.get("price") or 0),
+            stop=r["nimbo"]["stop"], sens=n.get("sens") if n.get("propose") else None)
         if n.get("propose"):
             r["sens_phrase"] = ("Nimbo propose de vendre à découvert" if n.get("sens") == "short"
                                 else "Nimbo propose d'acheter") + (
