@@ -46,56 +46,84 @@ ECHELLE = 3                 # 260 × 160 unités → 780 × 480 pixels
 SORTIE = os.path.join(os.path.dirname(__file__), "..", "public", "nuages")
 
 
+def bosses(lobes, base):
+    """Les lobes de la silhouette, plus ce qui rend un cumulus moelleux : une
+    petite bosse entre deux grands lobes voisins, deux bosses sur le sommet du
+    plus gros, et une base faite de trois dômes bas plutôt qu'une ellipse."""
+    tri = sorted(lobes, key=lambda l: l[0])
+    out = list(tri)
+    for (ax, ay, ar), (bx2, by2, br) in zip(tri, tri[1:]):
+        r = 0.4 * min(ar, br)
+        out.append(((ax + bx2) / 2, min(ay, by2) + 0.2 * r, r))
+    gx, gy, gr = max(lobes, key=lambda l: l[2])
+    out.append((gx - gr * 0.5, gy - gr * 0.55, gr * 0.42))
+    bx, by, brx, bry = base
+    # La base : des dômes bas et serrés, qui font un dessous rond sans boules.
+    for k, f in ((-0.8, 1.3), (-0.42, 1.12), (0, 1.42), (0.42, 1.12), (0.8, 1.3)):
+        out.append((bx + k * brx * 0.95, by - bry * (0.1 + 0.12 * (f - 1.12)), bry * f))
+    return out
+
+
 def svg(forme, flou, teinte):
     lobes, base = SILHOUETTES[forme]
     reflet, light, mid, shade = TEINTES[teinte]
     creux = CREUX[teinte]
     ombre, op_ombre = OMBRE[teinte]
     bx, by, brx, bry = base
-    # Les lobes du fond d'abord (les plus hauts), ceux de devant ensuite : une
-    # sphère basse passe devant une sphère haute, comme dans un vrai cumulus.
-    ordre = sorted(lobes, key=lambda l: l[1])
+    tous = bosses(lobes, base)
+    # Les lobes du fond d'abord (les plus hauts), ceux de devant ensuite.
+    ordre = sorted(tous, key=lambda l: l[1])
     silhouette = f'<ellipse cx="{bx}" cy="{by}" rx="{brx}" ry="{bry}"/>' + "".join(
-        f'<circle cx="{cx}" cy="{cy}" r="{r}"/>' for cx, cy, r in lobes)
-    corps = []
+        f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}"/>' for cx, cy, r in tous)
+    W, H = 200 + 2 * M, 100 + 2 * M
+    corps = [f'<rect x="-{M}" y="-{M}" width="{W}" height="{H}" fill="{light}"/>']
     for cx, cy, r in ordre:
-        # L'ombre de contact : la sphère assombrit ce qu'il y a derrière elle,
-        # juste en dessous d'elle. Coupée à la silhouette : rien ne déborde.
-        corps.append(f'<circle cx="{cx}" cy="{cy + r * 0.2}" r="{r * 1.05}" fill="{creux}" opacity="0.6" filter="url(#contact)"/>')
-        corps.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="url(#sphere)"/>')
-        # Le reflet brillant, petit et décentré vers la lumière : ce qui fait la sphère.
-        corps.append(f'<ellipse cx="{cx - r * 0.3}" cy="{cy - r * 0.38}" rx="{r * 0.3}" ry="{r * 0.17}" fill="{reflet}" opacity="0.75" filter="url(#brillant)"/>')
-    # Le dessous de la masse : la base, plus sombre vers le bas.
-    corps.append(f'<ellipse cx="{bx}" cy="{by}" rx="{brx}" ry="{bry}" fill="url(#base)"/>')
-    # Un voile de lumière sur le tiers supérieur, pour que les reflets des
-    # sphères se fondent en un seul éclairage.
-    corps.append(f'<rect x="-{M}" y="-{M}" width="{200 + 2 * M}" height="{100 + 2 * M}" fill="url(#voile)"/>')
-    w, h = (200 + 2 * M) * ECHELLE, (100 + 2 * M) * ECHELLE
+        # L'ombre de contact de chaque lobe sur ce qu'il y a derrière lui.
+        corps.append(f'<circle cx="{cx:.1f}" cy="{cy + r * 0.2:.1f}" r="{r * 1.04:.1f}" fill="{creux}" opacity="0.42" filter="url(#contact)"/>')
+        # Le modelé de sphère, assez transparent pour que la lumière d'ensemble passe.
+        corps.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}" fill="url(#sphere)" opacity="0.72"/>')
+    # La lumière d'ensemble, du haut à gauche vers le bas à droite : une seule
+    # source pour toute la masse, c'est ce qui en fait un seul objet.
+    corps.append(f'<rect x="-{M}" y="-{M}" width="{W}" height="{H}" fill="url(#lumiere)"/>')
+    # Le dessous, plus sombre vers le bas.
+    corps.append(f'<rect x="-{M}" y="-{M}" width="{W}" height="{H}" fill="url(#dessous)"/>')
+    # L'occlusion : une bande d'ombre le long du bord bas et droit ; le liseré :
+    # une bande de lumière le long du bord haut et gauche.
+    corps.append(f'<g filter="url(#occlusion)" fill="{creux}" opacity="0.6">{silhouette}</g>')
+    corps.append(f'<g filter="url(#liseret)" fill="{reflet}" opacity="0.95">{silhouette}</g>')
+    # Trois reflets brillants, sur les lobes les plus hauts.
+    for cx, cy, r in sorted(lobes, key=lambda l: l[1])[:3]:
+        corps.append(f'<ellipse cx="{cx - r * 0.28:.1f}" cy="{cy - r * 0.4:.1f}" rx="{r * 0.3:.1f}" ry="{r * 0.16:.1f}" fill="{reflet}" opacity="0.8" filter="url(#brillant)"/>')
+    w, h = W * ECHELLE, H * ECHELLE
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{-M} {-M} {200 + 2 * M} {100 + 2 * M}" width="{w}" height="{h}">'
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{-M} {-M} {W} {H}" width="{w}" height="{h}">'
         '<defs>'
-        # La sphère : reflet décentré en haut à gauche, ombre vers le bas et la droite.
+        # La masse fondue : les lobes se rejoignent en courbes douces (flou puis
+        # seuil sur l'alpha), comme des gouttes qui se touchent.
+        '<filter id="fusion" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.6"/>'
+        '<feComponentTransfer><feFuncA type="linear" slope="16" intercept="-6.2"/></feComponentTransfer></filter>'
+        f'<mask id="masse" maskUnits="userSpaceOnUse" x="-{M}" y="-{M}" width="{W}" height="{H}"><g filter="url(#fusion)" fill="#fff">{silhouette}</g></mask>'
         f'<radialGradient id="sphere" cx="0.36" cy="0.30" r="0.80" fx="0.30" fy="0.24">'
         f'<stop offset="0" stop-color="{reflet}"/><stop offset="0.30" stop-color="{light}"/>'
-        f'<stop offset="0.60" stop-color="{mid}"/><stop offset="0.86" stop-color="{shade}"/>'
+        f'<stop offset="0.62" stop-color="{mid}"/><stop offset="0.88" stop-color="{shade}"/>'
         f'<stop offset="1" stop-color="{creux}"/></radialGradient>'
-        f'<linearGradient id="base" x1="0" y1="0" x2="0" y2="1">'
-        f'<stop offset="0" stop-color="{mid}" stop-opacity="0"/><stop offset="0.5" stop-color="{mid}" stop-opacity="0.85"/>'
-        f'<stop offset="1" stop-color="{shade}"/></linearGradient>'
-        f'<linearGradient id="voile" x1="0" y1="0" x2="0" y2="1">'
-        f'<stop offset="0" stop-color="{reflet}" stop-opacity="0.55"/><stop offset="0.42" stop-color="{reflet}" stop-opacity="0"/></linearGradient>'
-        f'<filter id="contact" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.6"/></filter>'
-        f'<filter id="brillant" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>'
-        f'<filter id="sol" x="-40%" y="-80%" width="180%" height="260%"><feGaussianBlur stdDeviation="8"/></filter>'
-        # La moitié du flou demandé : le modelé fait déjà la douceur, et un
-        # flou entier l'effaçait sur les nuages lointains.
-        f'<filter id="doux" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="{flou * 0.55:.2f}"/></filter>'
-        f'<clipPath id="forme">{silhouette}</clipPath>'
+        f'<radialGradient id="lumiere" cx="0.3" cy="0.12" r="0.95">'
+        f'<stop offset="0" stop-color="{reflet}" stop-opacity="0.7"/><stop offset="0.45" stop-color="{reflet}" stop-opacity="0"/>'
+        f'<stop offset="1" stop-color="{creux}" stop-opacity="0.42"/></radialGradient>'
+        f'<linearGradient id="dessous" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0.5" stop-color="{shade}" stop-opacity="0"/><stop offset="0.8" stop-color="{shade}" stop-opacity="0.55"/>'
+        f'<stop offset="1" stop-color="{creux}" stop-opacity="0.8"/></linearGradient>'
+        '<filter id="contact" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4"/></filter>'
+        '<filter id="brillant" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.5"/></filter>'
+        '<filter id="sol" x="-40%" y="-80%" width="180%" height="260%"><feGaussianBlur stdDeviation="8"/></filter>'
+        '<filter id="occlusion" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3.2" result="b"/>'
+        '<feOffset in="SourceAlpha" dx="-2.8" dy="-3.6" result="o"/><feComposite in="b" in2="o" operator="out"/></filter>'
+        '<filter id="liseret" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="b"/>'
+        '<feOffset in="SourceAlpha" dx="2.2" dy="3" result="o"/><feComposite in="b" in2="o" operator="out"/></filter>'
+        f'<filter id="doux" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="{flou * 0.5:.2f}"/></filter>'
         '</defs>'
-        # L'ombre au sol, sous le nuage, qui le détache du ciel.
-        f'<ellipse cx="{bx}" cy="{by + bry + 10}" rx="{brx * 0.82}" ry="{7}" fill="{ombre}" opacity="{op_ombre}" filter="url(#sol)"/>'
-        # Le corps : tout est coupé à la silhouette, puis adouci d'un flou.
-        f'<g filter="url(#doux)"><g clip-path="url(#forme)">{"".join(corps)}</g></g>'
+        f'<ellipse cx="{bx}" cy="{by + bry + 11}" rx="{brx * 0.84}" ry="{7.5}" fill="{ombre}" opacity="{op_ombre}" filter="url(#sol)"/>'
+        f'<g filter="url(#doux)"><g mask="url(#masse)">{"".join(corps)}</g></g>'
         '</svg>'), w, h
 
 
