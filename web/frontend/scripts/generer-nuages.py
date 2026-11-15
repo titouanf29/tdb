@@ -37,8 +37,10 @@ TEINTES = {
     "clair": ("#FFFFFF", "#FDFDFE", "#E2E9F1", "#BCC9DA"),
     "sombre": ("#4A5D75", "#3B4D63", "#26344A", "#16202F"),
 }
+# Le creux des ombres, un ton sous l'ombre : c'est lui qui donne la profondeur.
+CREUX = {"clair": "#9FB0C6", "sombre": "#0B1320"}
 # L'ombre portée au sol : la couleur, et son opacité par thème.
-OMBRE = {"clair": ("#8FA3BA", 0.22), "sombre": ("#0B1726", 0.45)}
+OMBRE = {"clair": ("#7F95AE", 0.34), "sombre": ("#06101C", 0.6)}
 M = 30                      # marge pour que le flou et l'ombre ne soient jamais coupés
 ECHELLE = 3                 # 260 × 160 unités → 780 × 480 pixels
 SORTIE = os.path.join(os.path.dirname(__file__), "..", "public", "nuages")
@@ -47,6 +49,7 @@ SORTIE = os.path.join(os.path.dirname(__file__), "..", "public", "nuages")
 def svg(forme, flou, teinte):
     lobes, base = SILHOUETTES[forme]
     reflet, light, mid, shade = TEINTES[teinte]
+    creux = CREUX[teinte]
     ombre, op_ombre = OMBRE[teinte]
     bx, by, brx, bry = base
     # Les lobes du fond d'abord (les plus hauts), ceux de devant ensuite : une
@@ -58,8 +61,10 @@ def svg(forme, flou, teinte):
     for cx, cy, r in ordre:
         # L'ombre de contact : la sphère assombrit ce qu'il y a derrière elle,
         # juste en dessous d'elle. Coupée à la silhouette : rien ne déborde.
-        corps.append(f'<circle cx="{cx}" cy="{cy + r * 0.18}" r="{r}" fill="{shade}" opacity="0.34" filter="url(#contact)"/>')
+        corps.append(f'<circle cx="{cx}" cy="{cy + r * 0.2}" r="{r * 1.05}" fill="{creux}" opacity="0.6" filter="url(#contact)"/>')
         corps.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="url(#sphere)"/>')
+        # Le reflet brillant, petit et décentré vers la lumière : ce qui fait la sphère.
+        corps.append(f'<ellipse cx="{cx - r * 0.3}" cy="{cy - r * 0.38}" rx="{r * 0.3}" ry="{r * 0.17}" fill="{reflet}" opacity="0.75" filter="url(#brillant)"/>')
     # Le dessous de la masse : la base, plus sombre vers le bas.
     corps.append(f'<ellipse cx="{bx}" cy="{by}" rx="{brx}" ry="{bry}" fill="url(#base)"/>')
     # Un voile de lumière sur le tiers supérieur, pour que les reflets des
@@ -70,21 +75,25 @@ def svg(forme, flou, teinte):
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{-M} {-M} {200 + 2 * M} {100 + 2 * M}" width="{w}" height="{h}">'
         '<defs>'
         # La sphère : reflet décentré en haut à gauche, ombre vers le bas et la droite.
-        f'<radialGradient id="sphere" cx="0.36" cy="0.30" r="0.78" fx="0.30" fy="0.24">'
-        f'<stop offset="0" stop-color="{reflet}"/><stop offset="0.38" stop-color="{light}"/>'
-        f'<stop offset="0.74" stop-color="{mid}"/><stop offset="1" stop-color="{shade}"/></radialGradient>'
+        f'<radialGradient id="sphere" cx="0.36" cy="0.30" r="0.80" fx="0.30" fy="0.24">'
+        f'<stop offset="0" stop-color="{reflet}"/><stop offset="0.30" stop-color="{light}"/>'
+        f'<stop offset="0.60" stop-color="{mid}"/><stop offset="0.86" stop-color="{shade}"/>'
+        f'<stop offset="1" stop-color="{creux}"/></radialGradient>'
         f'<linearGradient id="base" x1="0" y1="0" x2="0" y2="1">'
-        f'<stop offset="0" stop-color="{mid}" stop-opacity="0"/><stop offset="0.45" stop-color="{mid}"/>'
+        f'<stop offset="0" stop-color="{mid}" stop-opacity="0"/><stop offset="0.5" stop-color="{mid}" stop-opacity="0.85"/>'
         f'<stop offset="1" stop-color="{shade}"/></linearGradient>'
         f'<linearGradient id="voile" x1="0" y1="0" x2="0" y2="1">'
         f'<stop offset="0" stop-color="{reflet}" stop-opacity="0.55"/><stop offset="0.42" stop-color="{reflet}" stop-opacity="0"/></linearGradient>'
-        f'<filter id="contact" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.2"/></filter>'
-        f'<filter id="sol" x="-40%" y="-80%" width="180%" height="260%"><feGaussianBlur stdDeviation="7"/></filter>'
-        f'<filter id="doux" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="{flou}"/></filter>'
+        f'<filter id="contact" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.6"/></filter>'
+        f'<filter id="brillant" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>'
+        f'<filter id="sol" x="-40%" y="-80%" width="180%" height="260%"><feGaussianBlur stdDeviation="8"/></filter>'
+        # La moitié du flou demandé : le modelé fait déjà la douceur, et un
+        # flou entier l'effaçait sur les nuages lointains.
+        f'<filter id="doux" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="{flou * 0.55:.2f}"/></filter>'
         f'<clipPath id="forme">{silhouette}</clipPath>'
         '</defs>'
         # L'ombre au sol, sous le nuage, qui le détache du ciel.
-        f'<ellipse cx="{bx}" cy="{by + bry + 9}" rx="{brx * 0.78}" ry="{5.5}" fill="{ombre}" opacity="{op_ombre}" filter="url(#sol)"/>'
+        f'<ellipse cx="{bx}" cy="{by + bry + 10}" rx="{brx * 0.82}" ry="{7}" fill="{ombre}" opacity="{op_ombre}" filter="url(#sol)"/>'
         # Le corps : tout est coupé à la silhouette, puis adouci d'un flou.
         f'<g filter="url(#doux)"><g clip-path="url(#forme)">{"".join(corps)}</g></g>'
         '</svg>'), w, h
