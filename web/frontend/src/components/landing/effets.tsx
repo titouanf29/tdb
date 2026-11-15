@@ -122,7 +122,7 @@ function cssEnvol(): string {
   // Le ciel derrière les nuages s'efface pendant la traversée.
   r.push(`@keyframes cv-fond{from{opacity:1}to{opacity:0}}.ciel-rideau.vol .cv-fond{animation:cv-fond ${(FIN_VOL * 0.5).toFixed(2)}s ease-in ${(FIN_VOL * 0.25).toFixed(2)}s both}`);
   // Un éclat de lumière au moment de déboucher.
-  r.push(`@keyframes cv-eclat{0%{opacity:0}40%{opacity:.9}100%{opacity:0}}`);
+  r.push(`@keyframes cv-eclat{0%{opacity:0}40%{opacity:.55}100%{opacity:0}}`);
   r.push(`.ciel-rideau.vol .cv-eclat{animation:cv-eclat ${(FIN_VOL * 0.8).toFixed(2)}s ease-out ${(FIN_VOL * 0.2).toFixed(2)}s both}`);
   // LE FILET DE SÉCURITÉ. Si le JavaScript tarde ou échoue (réseau lent,
   // bloqueur, erreur), rien n'ouvrirait le ciel et le visiteur resterait
