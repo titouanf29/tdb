@@ -1061,3 +1061,63 @@ html.lecture-confortable .cap :is(p, li, dd) { line-height: 1.7; }
   .cap .cap-tuile:hover { transform: translateY(-3px); box-shadow: inset 0 0 0 1px var(--cap-line-strong), 0 10px 24px rgba(11, 23, 38, 0.10); }
 }
 .anim-off .cap-tuile, .anim-off .cap-tuile:hover { transition: none; transform: none; }
+
+/* ── Connexion et inscription : la carte à volet coulissant ──────────────────
+   Une moitié pour le formulaire, l'autre pour le volet d'encre qui invite à
+   passer à l'autre formulaire. Téléphone d'abord ; côte à côte dès 1024 px.
+   Les trajets sont animés par le script (element.animate), ici seulement la
+   mise en page, le trait sous le champ actif et les points d'attente. */
+.cap.av-screen { display: flex; min-height: 100vh; min-height: 100dvh; flex-direction: column; align-items: center; padding: 0 12px calc(16px + env(safe-area-inset-bottom)); --av-inset: 8px; }
+.cap .av-top { display: flex; width: 100%; max-width: 980px; min-height: 64px; align-items: center; justify-content: space-between; padding: 0 8px; }
+.cap .av-card { position: relative; z-index: 0; display: grid; grid-template-areas: "volet" "forms"; width: 100%; max-width: 520px; margin-block: auto; padding: var(--av-inset); border-radius: 28px; }
+.cap.av-screen[data-mode="signup"] .av-card { grid-template-areas: "forms" "volet"; }
+.cap .av-card-bg { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--cap-surface); box-shadow: inset 0 0 0 1px var(--cap-line), var(--cap-shadow-lg); transform-origin: 50% 0; }
+.cap .av-forms { grid-area: forms; min-width: 0; padding: 24px 14px 18px; }
+.cap .av-pane { width: 100%; }
+.cap .av-pane h1 { margin: 0; color: var(--cap-ink); font-family: var(--cap-font-display); font-size: clamp(1.7rem, 7vw, 2.2rem); font-weight: 700; letter-spacing: -0.01em; line-height: 1.08; }
+.cap .av-pane h1:focus-visible { outline: none; }
+.cap .av-intro { margin: 8px 0 0; color: var(--cap-ink-2); font-size: 1rem; line-height: 1.5; }
+.cap .av-form { display: grid; gap: 1.1rem; margin-top: 1.4rem; }
+/* Le trait sous le champ actif s'étire depuis le centre. */
+.cap .av-champ { position: relative; }
+.cap .av-champ::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 1px; height: 2px; border-radius: 2px; background: var(--cap-ocean); transform: scaleX(0); transition: transform .45s var(--cap-ease); pointer-events: none; }
+.cap .av-champ:focus-within::after { transform: scaleX(1); }
+/* Les trois points ambre qui sautent pendant l'envoi. */
+.cap .av-dots { position: absolute; display: none; gap: 7px; }
+.cap .av-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--cap-ambre); animation: av-point .9s ease-in-out infinite; }
+.cap .av-dots i:nth-child(2) { animation-delay: .15s; }
+.cap .av-dots i:nth-child(3) { animation-delay: .3s; }
+.cap .av-busy { cursor: progress; }
+.cap .av-busy .av-submit-label { opacity: 0; }
+.cap .av-busy .av-dots { display: inline-flex; }
+@keyframes av-point { 0%, 60%, 100% { opacity: .45; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-6px); } }
+/* Le volet : l'encre, une lueur d'océan au sol. */
+.cap .av-volet { position: relative; z-index: 2; display: grid; grid-area: volet; min-width: 0; padding: 22px 20px 20px; border-radius: 22px; color: #E8EDF1; }
+.cap .av-volet-bg { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: radial-gradient(130% 90% at 50% 118%, rgba(21, 94, 117, 0.55) 0%, transparent 72%), var(--cap-navy); box-shadow: 0 18px 30px -18px rgba(11, 23, 38, 0.6); }
+.cap .av-volet-copy h2 { margin: 0; color: #F6F2EA; font-family: var(--cap-font-display); font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; }
+.cap .av-volet-copy p { margin: 6px 0 0; color: rgba(232, 237, 241, 0.74); font-size: 0.95rem; line-height: 1.5; }
+.cap .av-ghost { width: 100%; margin-top: 16px; transition: transform .25s var(--cap-ease); }
+.cap .av-ghost:active { transform: scale(.97); }
+.cap .av-legal { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 18px; margin: 10px 0 0; font-size: 0.82rem; }
+@media (min-width: 560px) {
+  .cap.av-screen { --av-inset: 10px; padding-right: 24px; padding-left: 24px; }
+  .cap .av-forms { padding: 30px 26px 24px; }
+  .cap .av-volet { padding: 28px 28px 26px; }
+}
+@media (min-width: 1024px) {
+  .cap.av-screen { --av-inset: 12px; padding: 0 32px 20px; }
+  .cap .av-top { min-height: 84px; }
+  .cap .av-card { grid-template-columns: 1fr 1fr; grid-template-areas: "forms volet"; max-width: 980px; min-height: 620px; border-radius: 36px; }
+  .cap.av-screen[data-mode="signup"] .av-card { grid-template-areas: "volet forms"; }
+  .cap .av-forms { display: grid; align-content: center; justify-items: center; padding: 36px 44px; }
+  .cap .av-pane { max-width: 380px; }
+  .cap .av-volet { align-content: center; padding: 50px 44px; border-radius: 28px; }
+  .cap .av-volet-copy h2 { font-size: 2.2rem; line-height: 1.06; }
+  .cap .av-volet-copy p { max-width: 20em; margin-top: 14px; font-size: 1.05rem; }
+  .cap .av-ghost { width: auto; margin-top: 26px; }
+  .cap .av-ghost:hover { transform: translateY(-2px); }
+  .cap .av-legal { margin-top: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .cap .av-dots i { animation: none; } }
+.anim-off .av-dots i { animation: none; }
+.anim-off .av-champ::after { transition: none; }
