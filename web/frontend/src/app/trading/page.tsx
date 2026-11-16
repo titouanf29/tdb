@@ -312,12 +312,10 @@ export default function TradingPage() {
         ? `${r.turbo.unites} titres achetés à ${moneyTitre(r.turbo.prix_titre)}${r.frais ? `, plus ${money(r.frais)} de frais` : ""}.`
         : `Position ouverte à ${assetPrice(r.entry_price || price)}.`;
       setSuccess(fait);
-      setOuverte({
-        symbole: symbol.toUpperCase(), sens: direction, prix: r.entry_price || price,
-        montant: turbo ? coutTitres : amount,
-        stop: useSL && !erreurStop ? stopLoss ?? null : null,
-        objectif: useTP && !erreurObjectif ? takeProfit ?? null : null,
-      });
+      setOuverte(ouvertureDe({
+        symbole: symbol, sens: direction, prix: r.entry_price || price, turbo, coutTitres, montant: amount,
+        stop: stopLoss, useSL, erreurStop, objectif: takeProfit, useTP, erreurObjectif,
+      }));
       // La confirmation prend la place du formulaire, en haut : elle était
       // tout en bas, derrière les bulles, et deux visiteurs ont cru que
       // l'ordre avait échoué.
@@ -385,11 +383,13 @@ export default function TradingPage() {
           </div>
         )}
 
-        {success ? (
+        {success && (
           <Confirmation fait={success} ouverte={ouverte} money={money} assetPrice={assetPrice}
             encore={() => { setSuccess(""); setOuverte(null); }} />
-        ) : (
-        <form onSubmit={submit} className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]" noValidate>
+        )}
+        {/* Le formulaire reste monté, masqué pendant la confirmation : pas de
+            branche imbriquée dans le rendu, et les champs gardent leur état. */}
+        <form onSubmit={submit} hidden={!!success} className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] [&[hidden]]:hidden" noValidate>
           {/* ── Left: the decision ──────────────────────────────────────── */}
           {/* min-w-0: a grid child will not shrink below its intrinsic width
               without it, so one wide row inside stretches the whole layout. */}
@@ -746,10 +746,25 @@ export default function TradingPage() {
             </Button>
           </div>
         </form>
-        )}
       </div>
     </>
   );
+}
+
+/** Ce que la confirmation affiche de l'ordre qui vient de passer. */
+function ouvertureDe(o: {
+  symbole: string; sens: string; prix: number; turbo: boolean; coutTitres: number; montant: number;
+  stop?: number | null; useSL: boolean; erreurStop?: string | null;
+  objectif?: number | null; useTP: boolean; erreurObjectif?: string | null;
+}) {
+  const stopPose = o.useSL && !o.erreurStop;
+  const objectifPose = o.useTP && !o.erreurObjectif;
+  return {
+    symbole: o.symbole.toUpperCase(), sens: o.sens, prix: o.prix,
+    montant: o.turbo ? o.coutTitres : o.montant,
+    stop: stopPose ? o.stop ?? null : null,
+    objectif: objectifPose ? o.objectif ?? null : null,
+  };
 }
 
 /**

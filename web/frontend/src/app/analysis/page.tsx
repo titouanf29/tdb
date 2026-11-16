@@ -472,6 +472,9 @@ function AnalysisScreen() {
   // Dans la devise de cotation de l'actif (dollars pour Apple, euros pour LVMH…).
   const assetPrice = useFormatAssetPrice(analysis?.symbol ?? symbol);
 
+  // Au téléphone, les réglages tiennent en une ligne avant tout actif et une fois l'actif analysé.
+  const reglagesReplies = (!!analysis || !symbol) && !reglagesOuverts;
+
   return (
     <>
       <WeatherBackdrop
@@ -592,7 +595,7 @@ function AnalysisScreen() {
           {/* Et AVANT tout actif aussi : horizon, cadran de risque et multiples
               d'ATR affichés avant même le nom d'un actif, un visiteur a « tout
               ignoré » et la boîte avec. */}
-          {(analysis || !symbol) && !reglagesOuverts && (
+          {reglagesReplies && (
             <div className="mt-4 flex items-center justify-between gap-3 border-t pt-3 sm:hidden" style={{ borderColor: "var(--cap-line)" }}>
               <Text size="small" as="span" tone="ink" className="min-w-0">
                 {style.label.fr} · {timeframe} · risque {RISQUE[niveauRisque(settings.riskLevel)].pct.toLocaleString("fr-FR")} %
@@ -604,7 +607,7 @@ function AnalysisScreen() {
               </button>
             </div>
           )}
-          <div className={(analysis || !symbol) && !reglagesOuverts ? "hidden sm:block" : undefined}>
+          <div className={reglagesReplies ? "hidden sm:block" : undefined}>
           <div className="mt-5 border-t pt-5" style={{ borderColor: "var(--cap-line)" }}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Text size="caption" as="span">Sur quel horizon analysez-vous ?</Text>
@@ -906,6 +909,18 @@ function AnalysisScreen() {
 
 /* ── Level 1 : the verdict ────────────────────────────────────────────────── */
 
+/** « Baissier » en haut, « verdict neutre » plus bas : la phrase qui dit pourquoi les deux tiennent. */
+function TendanceContreVerdict({ a, ton }: Readonly<{ a: Analysis; ton: "up" | "down" | "neutral" }>) {
+  const neutre = !!a.nimbo && !a.nimbo.propose && !!a.nimbo.raison?.startsWith("Verdict neutre");
+  if (ton === "neutral" || !neutre) return null;
+  return (
+    <Text size="small" className="mt-1 max-w-[36rem]">
+      La tendance de fond est {ton === "down" ? "baissière" : "haussière"}, mais le verdict, qui pèse
+      tous les signaux, reste au milieu : Nimbo n&apos;en tire ni achat ni vente pour l&apos;instant.
+    </Text>
+  );
+}
+
 function Verdict({
   analysis: a,
   assetPrice,
@@ -1056,12 +1071,7 @@ function Verdict({
             {/* « Baissier » ici, « verdict neutre » dix lignes plus bas : lequel
                 croire ? Les deux : la tendance dit où va le cours, le verdict
                 pèse tous les signaux. La phrase le dit avant qu'on ne cherche. */}
-            {dir.tone !== "neutral" && a.nimbo && !a.nimbo.propose && a.nimbo.raison?.startsWith("Verdict neutre") && (
-              <Text size="small" className="mt-1 max-w-[36rem]">
-                La tendance de fond est {dir.tone === "down" ? "baissière" : "haussière"}, mais le verdict, qui pèse
-                tous les signaux, reste au milieu : Nimbo n&apos;en tire ni achat ni vente pour l&apos;instant.
-              </Text>
-            )}
+            <TendanceContreVerdict a={a} ton={dir.tone} />
             {/* Ce qui a bougé depuis la dernière lecture, un autre jour. */}
             <DepuisLecture a={a} score={Math.round(a.profile_score?.total ?? a.score.total)} />
           </div>

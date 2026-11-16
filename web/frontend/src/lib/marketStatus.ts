@@ -143,71 +143,40 @@ export function getMarketHoursDisplay(marketKey: string): string {
 export function getTimeUntilChange(marketKey: string): string {
   const config = marketHoursConfig[marketKey];
   if (!config || config.alwaysOpen) return "";
-
   const isOpen = isMarketOpen(marketKey);
   const now = new Date();
-
-  // ── Forex / Commodities: 24h Mon-Fri, anchored to Paris time ─────────────────
-  if (config.alwaysOpenWeekdays) {
-    const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-    const pDay = parisTime.getDay();
-    const pCurrentMin = parisTime.getHours() * 60 + parisTime.getMinutes();
-
-    if (isOpen && pDay === 5) {
-      // Friday: show countdown to 22:00 close
-      const diff = 22 * 60 - pCurrentMin;
-      if (diff > 0) {
-        const h = Math.floor(diff / 60);
-        const m = diff % 60;
-        return `Ferme dans ${h}h${m.toString().padStart(2, "0")}`;
-      }
-    }
-
-    if (!isOpen) {
-      // Friday ≥22:00 or Saturday → reopens Sunday 23:00
-      if (pDay === 5 || pDay === 6) return "Ouvre dim à 23:00";
-      // Sunday before 23:00 → countdown to tonight
-      if (pDay === 0) {
-        const diff = 23 * 60 - pCurrentMin;
-        if (diff > 0) {
-          const h = Math.floor(diff / 60);
-          const m = diff % 60;
-          return `Ouvre dans ${h}h${m.toString().padStart(2, "0")}`;
-        }
-      }
-    }
-    return "";
-  }
+  if (config.alwaysOpenWeekdays) return changementSemaineContinue(isOpen, now);
 
   // ── Standard markets (Europe, USA, Asia) ──────────────────────────────────────
   const localTime = new Date(now.toLocaleString("en-US", { timeZone: config.timezone }));
-  const currentDay = localTime.getDay();
   const currentMinutes = localTime.getHours() * 60 + localTime.getMinutes();
-
   const [openH, openM] = config.openTime.split(":").map(Number);
   const [closeH, closeM] = config.closeTime.split(":").map(Number);
   const openMinutes = openH * 60 + openM;
-  const closeMinutes = closeH * 60 + closeM;
 
-  if (isOpen) {
-    const diff = closeMinutes - currentMinutes;
-    if (diff > 0) {
-      const h = Math.floor(diff / 60);
-      const m = diff % 60;
-      return `Ferme dans ${h}h${m.toString().padStart(2, "0")}`;
-    }
-  } else {
-    // If we're on an open weekday but before opening, show a simple countdown
-    if (!config.closedDays.includes(currentDay) && openMinutes > currentMinutes) {
-      const diff = openMinutes - currentMinutes;
-      const h = Math.floor(diff / 60);
-      const m = diff % 60;
-      return `Ouvre dans ${h}h${m.toString().padStart(2, "0")}`;
-    }
-
-    return prochaineOuverture(config.timezone, config.closedDays, localTime, openH, openM);
+  if (isOpen) return dans("Ferme", closeH * 60 + closeM - currentMinutes);
+  // Un jour de séance, avant l'ouverture : un simple compte à rebours.
+  if (!config.closedDays.includes(localTime.getDay()) && openMinutes > currentMinutes) {
+    return dans("Ouvre", openMinutes - currentMinutes);
   }
+  return prochaineOuverture(config.timezone, config.closedDays, localTime, openH, openM);
+}
 
+/** « Ferme dans 2h05 », ou rien quand l'écart n'est pas positif. */
+function dans(verbe: "Ouvre" | "Ferme", minutes: number): string {
+  if (minutes <= 0) return "";
+  return `${verbe} dans ${Math.floor(minutes / 60)}h${(minutes % 60).toString().padStart(2, "0")}`;
+}
+
+/** Forex et matières premières : séance continue du dimanche 23 h au vendredi 22 h, heure de Paris. */
+function changementSemaineContinue(isOpen: boolean, now: Date): string {
+  const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const pDay = parisTime.getDay();
+  const pCurrentMin = parisTime.getHours() * 60 + parisTime.getMinutes();
+  if (isOpen) return pDay === 5 ? dans("Ferme", 22 * 60 - pCurrentMin) : "";
+  // Vendredi soir ou samedi : réouverture dimanche 23 h ; dimanche avant 23 h : compte à rebours.
+  if (pDay === 5 || pDay === 6) return "Ouvre dim à 23 h 00";
+  if (pDay === 0) return dans("Ouvre", 23 * 60 - pCurrentMin);
   return "";
 }
 

@@ -2,6 +2,7 @@
 AI Analysis routes - Using the same analyzer as the bot
 """
 import logging
+import math
 import os
 import re
 import sys
@@ -106,7 +107,7 @@ def _rendement_fraction(v):
         f = float(v)
     except (TypeError, ValueError):
         return None
-    if f != f or f < 0:
+    if not math.isfinite(f) or f < 0:
         return None
     return f / 100 if f > 0.5 else f
 
