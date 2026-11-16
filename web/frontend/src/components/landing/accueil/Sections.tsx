@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { Button, LigneDatee, Nimbo } from "@/components/design-system";
 import { BordNuages } from "./BordNuages";
@@ -19,6 +20,29 @@ import { CarteRisque } from "./CarteRisque";
  * Deux fonds seulement, pleins : le ciel (et la feuille claire posée dessus)
  * et la nuit. Les bords des feuilles sont des nuages.
  */
+
+/** Un titre dont les mots montent l'un après l'autre quand il arrive à l'écran. */
+function Mots({ texte, depart = 0 }: Readonly<{ texte: string; depart?: number }>) {
+  return (
+    <>
+      {texte.split(" ").map((m, i, l) => (
+        <Fragment key={`${m}-${i}`}>
+          <span className="acc-mot-cadre"><span className="acc-mot" style={{ ["--i" as string]: depart + i }}>{m}</span></span>
+          {i < l.length - 1 ? " " : ""}
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
+/** Un zéro qui défile de 9 à 0, comme un compteur mécanique. */
+function Zero({ rang }: Readonly<{ rang: number }>) {
+  return (
+    <span className="acc-zero" aria-hidden style={{ ["--r" as string]: rang }}>
+      <span className="acc-rouleau">{[9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((n) => <span key={n}>{n}</span>)}</span>
+    </span>
+  );
+}
 
 const PAPIER = "var(--acc-papier)";
 const PAPIER_OMBRE = "var(--acc-papier-ombre)";
@@ -89,7 +113,7 @@ export function CaVousParle() {
     <section className="acc-feuille acc-histoire" aria-labelledby="histoire-titre">
       <BordNuages cote="haut" avant={PAPIER} arriere={PAPIER_OMBRE} />
       <div className="acc-wrap acc-histoire-grille">
-        <h2 id="histoire-titre" className="acc-histoire-titre acc-reveal">Ça vous parle&nbsp;?</h2>
+        <h2 id="histoire-titre" className="acc-histoire-titre acc-reveal"><Mots texte={"Ça vous parle\u00a0?"} /></h2>
         <div>
           <ol className="acc-moments">
             {MOMENTS.map((m) => (
@@ -144,7 +168,7 @@ export function TroisGestes() {
     <section className="acc-feuille acc-gestes" id="gestes" aria-labelledby="gestes-titre">
       <BordNuages cote="bas" avant={PAPIER} arriere={NUIT_BORD} />
       <div className="acc-wrap">
-        <h2 id="gestes-titre" className="acc-reveal">Trois gestes.<br />Dix minutes.</h2>
+        <h2 id="gestes-titre" className="acc-reveal"><Mots texte="Trois gestes." /><br /><Mots texte="Dix minutes." depart={2} /></h2>
         <ol className="acc-fil">
           {GESTES.map((g, i) => (
             <li key={g.titre} className="acc-geste acc-reveal">
@@ -183,7 +207,7 @@ export function QuiEstDerriere() {
     <section className="acc-nuit acc-origine" aria-labelledby="origine-titre">
       <div className="acc-wrap acc-origine-grille">
         <div>
-          <h2 id="origine-titre" className="acc-reveal">CaptenTDB ne gagne rien sur vos trades.</h2>
+          <h2 id="origine-titre" className="acc-reveal"><Mots texte="CaptenTDB ne gagne rien sur vos trades." /></h2>
           <div className="acc-origine-texte acc-reveal">
             <p>Personne ici ne touche de commission quand vous achetez. Personne ne vous pousse à trader : Nimbo dit aussi quand il vaut mieux attendre.</p>
             <p>Et quand il se trompe, ça se voit. Chacune de ses propositions est suivie jusqu&apos;au bout, et le bilan est dans votre espace.</p>
@@ -194,9 +218,9 @@ export function QuiEstDerriere() {
           </div>
         </div>
         <ul className="acc-zeros">
-          {ZEROS.map((z) => (
+          {ZEROS.map((z, i) => (
             <li key={z.quoi} className="acc-reveal">
-              <span className="acc-zero" aria-hidden>0</span>
+              <Zero rang={i} />
               <div><h3><span className="sr-only">Zéro </span>{z.quoi}</h3><p>{z.detail}</p></div>
             </li>
           ))}
@@ -243,7 +267,7 @@ export function Questions() {
       <BordNuages cote="bas" avant={PAPIER} arriere={NUIT_BORD} />
       <div className="acc-wrap acc-questions-grille">
         <div className="acc-questions-tete acc-reveal">
-          <h2 id="questions-titre">Vos questions.</h2>
+          <h2 id="questions-titre"><Mots texte="Vos questions." /></h2>
           <p>Une autre question&nbsp;? Le contact est dans les <Link href="/mentions-legales">mentions légales</Link>.</p>
         </div>
         {/* Questions et réponses composées, réponses visibles : la charte du site, pas un accordéon. */}
@@ -268,7 +292,7 @@ export function DernierMot() {
       {/* La nuit pend en nuages au-dessus du pied de page. */}
       <BordNuages cote="bas" avant="var(--acc-nuit)" arriere={NUIT_BORD} />
       <div className="acc-wrap">
-        <h2 id="final-titre" className="acc-reveal">Cette fois, vous savez où vous sortez.</h2>
+        <h2 id="final-titre" className="acc-reveal"><Mots texte="Cette fois, vous savez où vous sortez." /></h2>
         <div className="acc-cta acc-cta-centre acc-reveal">
           <Button href="/register" size="lg">Créer mon espace</Button>
           <Link href="/login" className="acc-lien-second">Se connecter</Link>

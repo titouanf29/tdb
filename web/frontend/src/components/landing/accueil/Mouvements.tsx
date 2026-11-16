@@ -39,6 +39,7 @@ export function Mouvements() {
     }
 
     const fil = document.querySelector<HTMLElement>(".acc-fil");
+    const haut = document.querySelector<HTMLElement>(".acc-hero");
     const bords = [...document.querySelectorAll<HTMLElement>(".acc-bord")];
     const dock = document.querySelector<HTMLElement>(".acc-dock");
     const boutonHaut = document.querySelector<HTMLElement>(".acc-hero .acc-cta");
@@ -47,6 +48,12 @@ export function Mouvements() {
     const maj = () => {
       raf = 0;
       const h = window.innerHeight;
+      if (haut && !reduit) {
+        // 0 tant que le haut de page est entier à l'écran, 1 quand il en est sorti.
+        const r = haut.getBoundingClientRect();
+        const p = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height * 0.9)));
+        haut.style.setProperty("--hp", p.toFixed(3));
+      }
       if (fil && !reduit) {
         const r = fil.getBoundingClientRect();
         const p = Math.min(1, Math.max(0, (h * 0.62 - r.top) / r.height));

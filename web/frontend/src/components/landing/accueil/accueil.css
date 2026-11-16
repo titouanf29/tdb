@@ -287,6 +287,70 @@
   .accueil .acc-dock { display: none; }
 }
 
+/* ── Les mouvements ajoutés ── */
+
+/* Les titres : les mots montent l'un après l'autre, derrière une ligne invisible. */
+.accueil .acc-mot-cadre { display: inline-block; overflow: hidden; padding: .1em 0 .1em; margin: -.1em 0 -.1em; vertical-align: top; }
+.accueil .acc-mot { display: inline-block; }
+.acc-js .accueil .acc-reveal .acc-mot, .acc-js .accueil .acc-questions-tete .acc-mot { transform: translate3d(0, 105%, 0); }
+.acc-js .accueil .acc-reveal.is-in .acc-mot, .acc-js .accueil .acc-questions-tete.is-in .acc-mot {
+  transform: none; transition: transform .8s cubic-bezier(.16, 1, .3, 1) calc(var(--d, 0s) + var(--i, 0) * 70ms);
+}
+/* Un titre en mots n'a pas besoin de monter en bloc : il est déjà animé de l'intérieur. */
+.acc-js .accueil h2.acc-reveal, .acc-js .accueil .acc-questions-tete { transform: none; }
+
+/* Les trois moments arrivent de côté, en alternance, comme des cartes qu'on pose. */
+.acc-js .accueil .acc-moment.acc-reveal:nth-child(odd) { transform: translate3d(-36px, 18px, 0) rotate(-1.2deg); }
+.acc-js .accueil .acc-moment.acc-reveal:nth-child(even) { transform: translate3d(36px, 18px, 0) rotate(1.2deg); }
+.acc-js .accueil .acc-moment.acc-reveal.is-in { transform: none; }
+
+/* La réponse : le trait ambre se dessine sous « la sortie ». */
+.acc-js .accueil .acc-reponse.acc-reveal em { background-size: 0% 0.1em; transition: background-size .9s cubic-bezier(.22, 1, .36, 1) calc(var(--d, 0s) + .45s); }
+.acc-js .accueil .acc-reponse.acc-reveal.is-in em { background-size: 100% 0.1em; }
+
+/* Les numéros des gestes éclosent. */
+.acc-js .accueil .acc-geste.acc-reveal .acc-geste-n { transform: scale(0); }
+.acc-js .accueil .acc-geste.acc-reveal.is-in .acc-geste-n { transform: none; transition: transform .6s cubic-bezier(.34, 1.56, .64, 1) calc(var(--d, 0s) + .15s); }
+
+/* Les zéros défilent de 9 à 0, chacun à son rythme. Sans script, ils sont déjà à 0. */
+.accueil .acc-zero { display: block; height: .84em; overflow: hidden; line-height: .84; }
+.accueil .acc-rouleau { display: flex; flex-direction: column; transform: translate3d(0, -9em, 0); transform: translate3d(0, calc(-9 * .84em), 0); }
+.accueil .acc-rouleau span { display: block; height: .84em; line-height: .84; }
+.acc-js .accueil .acc-reveal .acc-rouleau { transform: none; }
+.acc-js .accueil .acc-reveal.is-in .acc-rouleau {
+  transform: translate3d(0, calc(-9 * .84em), 0);
+  transition: transform calc(1.1s + var(--r, 0) * .18s) cubic-bezier(.3, .9, .25, 1) calc(var(--d, 0s) + .2s);
+}
+
+/* Les questions arrivent l'une après l'autre. */
+.acc-js .accueil .acc-questions .cap-qr.acc-reveal { transform: none; }
+.acc-js .accueil .acc-questions .cap-qr.acc-reveal .cap-qr-item { opacity: 0; transform: translate3d(0, 16px, 0); }
+.acc-js .accueil .acc-questions .cap-qr.acc-reveal.is-in .cap-qr-item { opacity: 1; transform: none; transition: opacity .6s var(--acc-ease), transform .6s var(--acc-ease); }
+.acc-js .accueil .acc-questions .cap-qr.acc-reveal.is-in .cap-qr-item:nth-child(1) { transition-delay: 0.00s; }
+.acc-js .accueil .acc-questions .cap-qr.acc-reveal.is-in .cap-qr-item:nth-child(2) { transition-delay: 0.08s; }
+.acc-js .accueil .acc-questions .cap-qr.acc-reveal.is-in .cap-qr-item:nth-child(3) { transition-delay: 0.16s; }
+.acc-js .accueil .acc-questions .cap-qr.acc-reveal.is-in .cap-qr-item:nth-child(4) { transition-delay: 0.24s; }
+.acc-js .accueil .acc-questions .cap-qr.acc-reveal.is-in .cap-qr-item:nth-child(5) { transition-delay: 0.32s; }
+.acc-js .accueil .acc-questions .cap-qr.acc-reveal.is-in .cap-qr-item:nth-child(6) { transition-delay: 0.40s; }
+.acc-js .accueil .acc-questions .cap-qr.acc-reveal.is-in .cap-qr-item:nth-child(7) { transition-delay: 0.48s; }
+.acc-js .accueil .acc-questions .cap-qr.acc-reveal.is-in .cap-qr-item:nth-child(8) { transition-delay: 0.56s; }
+
+/* Le haut de page s'efface quand la feuille monte dessus (--hp, de 0 à 1, posé par le script). */
+.accueil .acc-hero-grille { transform-origin: 50% 0; }
+.acc-js .accueil .acc-hero-grille {
+  opacity: calc(1 - var(--hp, 0) * .55);
+  transform: translate3d(0, calc(var(--hp, 0) * 56px), 0) scale(calc(1 - var(--hp, 0) * .05));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acc-js .accueil .acc-reveal .acc-mot, .acc-js .accueil .acc-questions-tete .acc-mot, .acc-js .accueil .acc-moment.acc-reveal,
+  .acc-js .accueil .acc-geste.acc-reveal .acc-geste-n, .acc-js .accueil .acc-questions .cap-qr.acc-reveal .cap-qr-item, .acc-js .accueil .acc-hero-grille {
+    opacity: 1; transform: none; transition: none;
+  }
+  .acc-js .accueil .acc-reponse.acc-reveal em { background-size: 100% 0.1em; transition: none; }
+  .acc-js .accueil .acc-reveal .acc-rouleau { transform: translate3d(0, calc(-9 * .84em), 0); transition: none; }
+}
+
 /* Mouvement réduit : tout est en place d'emblée, rien ne bouge. */
 @media (prefers-reduced-motion: reduce) {
   .accueil .acc-monte, .accueil .acc-monte-loin, .accueil .acc-carte-scene, .accueil .acc-carte-scene::before, .accueil .acc-carte-scene::after { animation: none; }

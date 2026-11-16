@@ -1,5 +1,6 @@
 "use client";
 
+import { TransitionsDePage } from "@/components/app/TransitionsDePage";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
@@ -222,6 +223,17 @@ function AuthShell({
 // ── AppLayout: routes to the correct shell, no hooks needed here ──────────────
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
+  // Les transitions entre les pages valent pour tout le site : vitrine,
+  // connexion, leçons publiques et application.
+  return (
+    <>
+      <TransitionsDePage />
+      <Cadre>{children}</Cadre>
+    </>
+  );
+}
+
+function Cadre({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const isLandingPage = !pathname || pathname === "/";
