@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -25,6 +25,7 @@ const LINKS = [
 export function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const entete = useRef<HTMLElement>(null);
   // Une inscrite qui tape l'adresse tombe sur la page de vente : au moins,
   // le bouton la ramène chez elle.
   const [connecte, setConnecte] = useState(false);
@@ -39,13 +40,28 @@ export function LandingNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Le menu ouvert se ferme comme on s'y attend : Échap, ou un geste à côté.
+  // Il fallait trouver la croix, et il restait ouvert pendant que la page
+  // défilait dessous.
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    if (!open) return () => { document.body.style.overflow = ""; };
+    const clavier = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const dehors = (e: PointerEvent) => {
+      if (!(e.target instanceof Node) || !entete.current?.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("keydown", clavier);
+    document.addEventListener("pointerdown", dehors);
+    return () => {
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", clavier);
+      document.removeEventListener("pointerdown", dehors);
+    };
   }, [open]);
 
   return (
     <header
+      ref={entete}
       className="fixed inset-x-0 top-0 z-40 transition-[background-color,box-shadow] duration-300"
       style={{
         backgroundColor: scrolled ? "var(--cap-bg)" : "transparent",

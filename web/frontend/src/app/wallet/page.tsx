@@ -292,9 +292,7 @@ export default function WalletPage() {
             <Heading level={1}>Wallet de simulation</Heading>
             <Text className="mt-2.5 max-w-[36rem]">
               Votre compte d&apos;entraînement. Tout y est virtuel, c&apos;est
-              exactement ce qui permet de se tromper utilement. À ne pas
-              confondre avec « Mes placements hors site », qui est un registre de vos
-              placements hors du site.
+              exactement ce qui permet de se tromper utilement.
             </Text>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">

@@ -205,41 +205,19 @@ export default function DashboardPage() {
           <ActionsRapides />
         </Reveal>
 
-        {/* ── Demain, juste après la prochaine étape ─────────────────────
-            Ce qui attend à la prochaine séance : annonces, plans de Nimbo
-            encore ouverts sur les favoris, positions sans stop. Un visiteur
-            l'a trouvé « le bloc le plus utile de la page, et le dernier » :
-            il passe avant les missions. Il s'efface quand il n'a rien à dire. */}
-        <Reveal delay={0.06}>
-          <Demain />
-        </Reveal>
-
-        {/* La série de jours d'affilée et les missions du jour. */}
-        <Aujourdhui />
-
-        {/* LE RENDEZ-VOUS DU MATIN. Le site savait prévenir quand quelque
-            chose arrivait ; rien ne donnait de raison de revenir un matin
-            ordinaire. L'invitation ne vient qu'à ceux qui ont déjà quelque
-            chose à suivre, et seulement si cet appareil peut la recevoir. */}
-        {(favorites.length > 0 || positions.length > 0) && <NotificationsAppareil forme="matin" />}
-
-        {/* Au troisième jour d'affilée : une place sur l'écran d'accueil. */}
-        <InstallerApplication />
-
-        {/* Le site évolue encore : un nouvel inscrit sait où écrire. Plus
-            bas qu'avant : en premier bloc, c'était la première chose lue dans
-            un espace tout neuf, et ce n'est pas une bienvenue. */}
-        <AvisDeveloppement />
-
         {/* ── 3 & 4. L'argent et la veille — dans l'ordre de l'objectif ──
             L'objectif déclaré au premier lancement réordonne réellement cette
             page. Poser la question et ne rien changer derrière, c'est le
             reproche qu'on nous faisait : « comprendre » fait remonter le
             parcours, « suivre » fait remonter les actifs suivis, « tester »
             garde le portefeuille en tête. Ce n'est pas un thème, c'est
-            l'ordre dans lequel les choses arrivent sous les yeux. */}
+            l'ordre dans lequel les choses arrivent sous les yeux.
+
+            ICI, ET PAS SIX ÉCRANS PLUS BAS. Au téléphone, les 10 000 € étaient
+            la première chose cherchée et la dernière trouvée : « le site cache
+            l'essentiel ». L'argent vient juste après la prochaine étape. */}
         <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <Reveal delay={0.08} className={goal === "suivre" ? "order-2" : "order-1"}>
+          <Reveal delay={0.06} className={goal === "suivre" ? "order-2" : "order-1"}>
             {/* CE PANNEAU LIT LE WALLET, PAS LE PORTEFEUILLE. Il s'intitulait
                 « Votre portefeuille » et son lien menait à /portfolio, les
                 placements réels saisis à la main, alors que le solde, le
@@ -304,7 +282,7 @@ export default function DashboardPage() {
             </Panel>
           </Reveal>
 
-          <Reveal delay={0.12} className={goal === "suivre" ? "order-1" : "order-2"}>
+          <Reveal delay={0.08} className={goal === "suivre" ? "order-1" : "order-2"}>
             <Panel
               title="Vos actifs"
               hint={favorites.length > 0 ? "Variation depuis la clôture précédente." : undefined}
@@ -340,6 +318,27 @@ export default function DashboardPage() {
           </Reveal>
         </div>
 
+        {/* ── Demain, juste après la prochaine étape ─────────────────────
+            Ce qui attend à la prochaine séance : annonces, plans de Nimbo
+            encore ouverts sur les favoris, positions sans stop. Un visiteur
+            l'a trouvé « le bloc le plus utile de la page, et le dernier » :
+            il passe avant les missions. Il s'efface quand il n'a rien à dire. */}
+        <Reveal delay={0.06}>
+          <Demain />
+        </Reveal>
+
+        {/* La série de jours d'affilée et les missions du jour. */}
+        <Aujourdhui />
+
+        {/* LE RENDEZ-VOUS DU MATIN. Le site savait prévenir quand quelque
+            chose arrivait ; rien ne donnait de raison de revenir un matin
+            ordinaire. L'invitation ne vient qu'à ceux qui ont déjà quelque
+            chose à suivre, et seulement si cet appareil peut la recevoir. */}
+        {(favorites.length > 0 || positions.length > 0) && <NotificationsAppareil forme="matin" />}
+
+        {/* Au troisième jour d'affilée : une place sur l'écran d'accueil. */}
+        <InstallerApplication />
+
         {/* ── 4. Ce que la personne fait vraiment ──────────────────────────
             Mesuré sur ses trades, à côté de ses réglages. Il remonte quand
             l'objectif déclaré est de tester : c'est la question qu'elle pose. */}
@@ -365,6 +364,11 @@ export default function DashboardPage() {
           <Intention />
         </Reveal>
 
+        {/* Le site évolue encore : un nouvel inscrit sait où écrire. En
+            dernier : en premier bloc, c'était la première chose lue dans un
+            espace tout neuf, et ce n'est pas une bienvenue ; au milieu, il
+            repoussait l'argent au sixième écran du téléphone. */}
+        <AvisDeveloppement />
 
         {/* ── 5. Le démarrage guidé et le parcours ─────────────────────── */}
         {/* « Votre premier parcours » monte en tête tant que le compte n'a

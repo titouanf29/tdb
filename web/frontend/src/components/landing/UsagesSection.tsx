@@ -30,6 +30,9 @@ const USAGES = [
   { titre: "Prendre position avec 10 000 €", texte: "Un ordre se passe comme chez un courtier, mais l'argent est fictif. Stop et objectif se posent avant d'entrer." },
   { titre: "Tenir son journal", texte: "Chaque position fermée est relue : ce qui était prévu, ce qui s'est passé, et ce qu'on en retient." },
   { titre: "Être prévenu", texte: "Une alerte quand un prix est atteint, ou quand Nimbo propose un achat sur un de vos favoris. Sur téléphone aussi." },
+  // Un détenteur de PEA venu voir ne l'avait trouvé nulle part : la seule
+  // fonction qui le concernait était invisible sur cette page.
+  { titre: "Suivre ses vrais placements", texte: "Un registre de vos lignes réelles, chez votre courtier : prix d'achat, valeur du jour, plus ou moins-value. Rien n'y est exécuté, c'est un carnet que vous tenez." },
 ];
 
 const CADENCE = 6000;
@@ -66,25 +69,36 @@ function Note({ children }: Readonly<{ children: React.ReactNode }>) {
   return <Text size="caption" className="mt-4">{children}</Text>;
 }
 
-function EcranAnalyses({ actifs, direct }: Readonly<{ actifs: DemoAsset[]; direct: boolean }>) {
+/* Pendant que le moteur répond, les lignes attendent au lieu d'afficher
+   l'exemple : « Haussier 78 / 100 » remplacé deux secondes plus tard par
+   « Neutre 48 » se lisait comme une chose puis son contraire. L'exemple ne
+   revient que si le moteur ne répond vraiment pas. */
+function EcranAnalyses({ actifs, direct, attente }: Readonly<{ actifs: DemoAsset[]; direct: boolean; attente: boolean }>) {
+  let aside = "Exemple, le temps que le moteur réponde";
+  if (direct) aside = "Lecture réelle du moteur";
+  else if (attente) aside = "Le moteur répond…";
   return (
     <div>
-      <Tete titre="Les analyses du jour" aside={direct ? "Lecture réelle du moteur" : "Exemple, le temps que le moteur réponde"} />
+      <Tete titre="Les analyses du jour" aside={aside} />
       <table className="mt-1 w-full border-collapse text-[0.95rem]">
         <tbody>
           {actifs.map((a) => (
             <tr key={a.id} className="border-b" style={{ borderColor: "var(--cap-line)" }}>
               <td className="py-2.5 pr-3 font-semibold" style={{ color: "var(--cap-ink)" }}>{a.name}</td>
               <td className="py-2.5 pr-3">
-                <span className="inline-block rounded-full px-2.5 py-0.5 text-[0.82rem] font-semibold"
-                  style={{ backgroundColor: "var(--cap-bg)", color: tonDirection(a.direction) }}>
-                  {a.direction}
-                </span>
+                {attente && !direct ? (
+                  <span aria-hidden className="inline-block h-5 w-16 rounded-full" style={{ backgroundColor: "var(--cap-bg)" }} />
+                ) : (
+                  <span className="inline-block rounded-full px-2.5 py-0.5 text-[0.82rem] font-semibold"
+                    style={{ backgroundColor: "var(--cap-bg)", color: tonDirection(a.direction) }}>
+                    {a.direction}
+                  </span>
+                )}
               </td>
               <td className="py-2.5 text-right" style={{ color: "var(--cap-ink-3)" }}>
-                <Num className="text-[0.88rem]">{a.score} / 100</Num>
+                <Num className="text-[0.88rem]">{attente && !direct ? "…" : `${a.score} / 100`}</Num>
                 <div className="mt-1.5 ml-auto h-1.5 w-28 overflow-hidden rounded-full" style={{ backgroundColor: "var(--cap-bg)" }}>
-                  <div className="h-full rounded-full" style={{ width: `${a.score}%`, backgroundColor: "var(--cap-ocean)" }} />
+                  <div className="h-full rounded-full" style={{ width: attente && !direct ? 0 : `${a.score}%`, backgroundColor: "var(--cap-ocean)" }} />
                 </div>
               </td>
             </tr>
@@ -251,10 +265,18 @@ export function UsagesSection() {
     return () => clearTimeout(t);
   }, [visible, actifs, pause, on]);
 
+  // Quatre secondes d'attente avant de montrer l'exemple à la place du moteur.
+  const [attente, setAttente] = useState(true);
+  useEffect(() => {
+    if (!visible) return;
+    const t = setTimeout(() => setAttente(false), 4000);
+    return () => clearTimeout(t);
+  }, [visible]);
+
   const liste = DEMO_ASSETS.map((a) => vivants[a.id] ?? a);
   const direct = DEMO_ASSETS.every((a) => vivants[a.id]);
   const ecrans = [
-    <EcranAnalyses key="a" actifs={liste} direct={direct} />,
+    <EcranAnalyses key="a" actifs={liste} direct={direct} attente={attente} />,
     <EcranProposition key="p" />,
     <EcranOrdre key="o" />,
     <EcranJournal key="j" />,

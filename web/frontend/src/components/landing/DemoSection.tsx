@@ -31,6 +31,21 @@ function heure(iso: string): string {
   const [h, m] = iso.slice(11, 16).split(":");
   return `${Number(h)} h ${m}`;
 }
+/**
+ * Pourquoi « Neutre » quand les facteurs penchent : le score global pèse tout,
+ * et d'autres mesures contrebalancent. Rien n'est dit quand ils sont partagés.
+ */
+function lectureDuNeutre(a: DemoAsset): string | null {
+  if (a.direction !== "Neutre") return null;
+  const lus = a.factors.filter((f) => /tendance|momentum|élan|volume/i.test(f.label));
+  if (lus.length < 2) return null;
+  const moyenne = lus.reduce((s, f) => s + f.value, 0) / lus.length;
+  if (moyenne > 35 && moyenne < 65) return null;
+  const sens = moyenne <= 35 ? "la baisse" : "la hausse";
+  return `Tendance, élan et volumes penchent vers ${sens}, mais pas le score global, qui reste au milieu : `
+    + "d'autres mesures les contrebalancent. Le moteur ne propose ni achat ni vente, il attend un signal plus net.";
+}
+
 export function DemoSection({ initial }: Readonly<{ initial?: DemoAsset | null }>) {
   const [assetId, setAssetId] = useState(DEMO_ASSETS[0].id);
   const [level, setLevel] = useState<LevelId>("discover");
@@ -210,6 +225,13 @@ export function DemoSection({ initial }: Readonly<{ initial?: DemoAsset | null }
                     </div>
                   </div>
                 </div>
+
+                {/* « Tout au rouge et on me dit neutre » : la règle, en une
+                    phrase, quand les facteurs penchent d'un côté et que le
+                    score reste au milieu. */}
+                {lectureDuNeutre(asset) && (
+                  <Text size="caption" className="mt-3 max-w-[36rem]">{lectureDuNeutre(asset)}</Text>
+                )}
 
                 <div className="mt-6 h-[200px] w-full">
                   <AnalysisVisual

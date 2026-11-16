@@ -205,29 +205,34 @@ export function getTimeUntilChange(marketKey: string): string {
       return `Ouvre dans ${h}h${m.toString().padStart(2, "0")}`;
     }
 
-    // Walk forward to find the next truly open day (skips all closedDays)
-    let daysAhead = 1;
-    let nextDay = (currentDay + 1) % 7;
-    while (config.closedDays.includes(nextDay)) {
-      daysAhead++;
-      nextDay = (nextDay + 1) % 7;
-    }
-
-    // L'HEURE EST CELLE DE PARIS. « Ouvre lun à 09:30 » pour New York se lisait
-    // à côté de « il rouvre lundi vers 15 h 30 » sur les cartes du scanner : la
-    // même ouverture, deux heures différentes sur la même page. L'écran parle
-    // à quelqu'un en France ; l'heure locale de la place reste dans l'infobulle
-    // des horaires.
-    const dayNamesFr = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
-    const heure = heureDeParis(config.timezone, localTime, daysAhead, openH, openM);
-    const precision = config.timezone === "Europe/Paris" ? "" : ", heure de Paris";
-    if (daysAhead === 1) {
-      return `Ouvre demain à ${heure}${precision}`;
-    }
-    return `Ouvre ${dayNamesFr[nextDay]} à ${heure}${precision}`;
+    return prochaineOuverture(config.timezone, config.closedDays, localTime, openH, openM);
   }
 
   return "";
+}
+
+/**
+ * « Ouvre demain à 09:00 », « Ouvre lun à 15:30, heure de Paris » : la prochaine
+ * séance, en sautant les jours fermés.
+ *
+ * L'HEURE EST CELLE DE PARIS. « Ouvre lun à 09:30 » pour New York se lisait à
+ * côté de « il rouvre lundi vers 15 h 30 » sur les cartes du scanner : la même
+ * ouverture, deux heures différentes sur la même page. L'écran parle à
+ * quelqu'un en France ; l'heure locale de la place reste dans l'infobulle des
+ * horaires.
+ */
+function prochaineOuverture(tz: string, joursFermes: number[], localTime: Date, openH: number, openM: number): string {
+  let daysAhead = 1;
+  let nextDay = (localTime.getDay() + 1) % 7;
+  while (joursFermes.includes(nextDay)) {
+    daysAhead++;
+    nextDay = (nextDay + 1) % 7;
+  }
+  const dayNamesFr = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
+  const heure = heureDeParis(tz, localTime, daysAhead, openH, openM);
+  const precision = tz === "Europe/Paris" ? "" : ", heure de Paris";
+  const jour = daysAhead === 1 ? "demain" : dayNamesFr[nextDay];
+  return `Ouvre ${jour} à ${heure}${precision}`;
 }
 
 /** Le décalage, en minutes, entre l'heure murale d'un fuseau et l'heure UTC à un instant donné. */
@@ -247,5 +252,7 @@ function heureDeParis(tz: string, localeMaintenant: Date, joursPlusTard: number,
   const approx = new Date(Date.UTC(
     localeMaintenant.getFullYear(), localeMaintenant.getMonth(), localeMaintenant.getDate() + joursPlusTard, h, m));
   const instant = new Date(approx.getTime() - decalageMinutes(tz, approx) * 60000);
-  return instant.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
+  const [hh, mm] = instant.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" }).split(":");
+  // « 9 h 00 », « 15 h 30 » : l'écriture du reste du site, pas « 09:00 ».
+  return `${Number(hh)} h ${mm}`;
 }

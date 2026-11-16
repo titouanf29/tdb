@@ -16,7 +16,14 @@ import type { AnalysePublique } from "@/lib/actifs-serveur";
 /** « 2026-11-01T00:04+01:00 » → « 0 h 04 ». */
 function heure(iso: string): string {
   const [h, m] = iso.slice(11, 16).split(":");
-  return `${Number(h)} h ${m}`;
+  const hm = `${Number(h)} h ${m}`;
+  // « cours de 16 h 30 » lu un dimanche à 15 h 31 : de quel jour ? Le jour
+  // est dit dès que ce n'est pas aujourd'hui.
+  const jour = iso.slice(0, 10);
+  const aujourdhui = new Date().toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" });
+  if (!jour || jour === aujourdhui) return hm;
+  const d = new Date(`${jour}T12:00:00Z`);
+  return `${d.toLocaleDateString("fr-FR", { weekday: "long", timeZone: "Europe/Paris" })} ${hm}`;
 }
 
 /** Le nom de l'actif dans une phrase : « l'or », « Apple ». */

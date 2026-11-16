@@ -395,18 +395,20 @@ function FormulaireInscription({ onSucces }: { onSucces: () => void }) {
     if (occupe) return;
     setError("");
     setEssaye(true);
-    const premiere = [
-      ["reg-username", "Le pseudo", erreurPseudo], ["reg-email", "L'adresse e-mail", erreurEmail],
-      ["reg-password", "Le mot de passe", erreurMdp], ["reg-confirm", "La confirmation", erreurConfirm],
-    ].find(([, , m]) => m);
-    if (premiere) {
-      setError(`${premiere[1]} : ${premiere[2].charAt(0).toLowerCase()}${premiere[2].slice(1)}`);
-      document.getElementById(premiere[0])?.focus();
-      secouer(form.current);
-      return;
-    }
-    if (!accepted) {
-      setError("Vous devez accepter les conditions d'utilisation.");
+    // TOUT CE QUI MANQUE, D'UN COUP, case comprise. Le bandeau ne disait que
+    // la première erreur et la case oubliée n'apparaissait qu'une fois les
+    // champs corrigés : un visiteur a eu l'impression d'être refusé deux fois.
+    const manques = [
+      ["reg-username", "le pseudo", erreurPseudo], ["reg-email", "l'adresse e-mail", erreurEmail],
+      ["reg-password", "le mot de passe", erreurMdp], ["reg-confirm", "la confirmation", erreurConfirm],
+      ["reg-accepte", "les conditions", accepted ? "" : "cochez la case pour les accepter"],
+    ].filter(([, , m]) => m);
+    if (manques.length > 0) {
+      const liste = manques.map(([, quoi, m]) => `${quoi} (${m.charAt(0).toLowerCase()}${m.slice(1).replace(/\.$/, "")})`);
+      setError(manques.length === 1
+        ? `Il manque ${liste[0]}.`
+        : `Il manque ${manques.length} choses : ${liste.join(", ")}.`);
+      document.getElementById(manques[0][0])?.focus();
       secouer(form.current);
       return;
     }
@@ -456,7 +458,7 @@ function FormulaireInscription({ onSucces }: { onSucces: () => void }) {
             autoComplete="new-password" required invalid={!!(montreConfirm && erreurConfirm)} />
         </div>
       </Field>
-      <Checkbox checked={accepted} onChange={setAccepted}>
+      <Checkbox id="reg-accepte" checked={accepted} onChange={setAccepted} invalid={essaye && !accepted}>
         J&apos;accepte les{" "}
         <Link href="/cgu" className="underline underline-offset-2" style={{ color: "var(--cap-ocean)" }}>conditions d&apos;utilisation</Link>{" "}
         et la{" "}

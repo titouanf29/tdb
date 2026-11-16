@@ -17,6 +17,9 @@ export function ChiffresCles() {
   const n = (v: string) => (
     <span className="cap-chiffre"><Compteur valeur={v} /></span>
   );
+  // Le capital de départ et le prix ne comptent pas : « 9 997 € » affiché le
+  // temps de l'animation a encore fait douter un visiteur du vrai chiffre.
+  const fixe = (v: string) => <span className="cap-chiffre">{v}</span>;
   return (
     <section aria-label="CaptenTDB en chiffres" className="relative z-10 pb-4 pt-2">
       <Container width="wide">
@@ -26,8 +29,8 @@ export function ChiffresCles() {
             style={{ borderColor: "var(--cap-line-strong)", color: "var(--cap-ink-2)", fontFamily: "var(--cap-font-display)" }}
           >
             Le simulateur passe en revue {n("800")} actions, indices, cryptos, devises et matières
-            premières. Vous démarrez avec {n("10 000 €")} virtuels, sur les vrais cours. Les dates de
-            la Fed et de la BCE viennent de leurs sites officiels. Et il vous coûte {n("0 €")}, sans
+            premières. Vous démarrez avec {fixe("10 000 €")} virtuels, sur les vrais cours. Les dates de
+            la Fed et de la BCE viennent de leurs sites officiels. Et il vous coûte {fixe("0 €")}, sans
             carte bancaire.
           </p>
         </Reveal>

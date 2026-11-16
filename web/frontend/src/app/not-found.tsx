@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button, Heading, Nimbo, Text } from "@/components/design-system";
 
@@ -13,16 +13,26 @@ import { Button, Heading, Nimbo, Text } from "@/components/design-system";
  * un visiteur sans compte repart vers l'accueil et les pages publiques, pas
  * vers un espace qui lui demanderait de se connecter.
  */
+/** Un jeton en mémoire locale : la personne a un espace où repartir. */
+function sessionOuverte(): boolean {
+  try {
+    return !!localStorage.getItem("tdb_token");
+  } catch {
+    // Stockage indisponible (navigation privée, réglages stricts) : on repart vers l'accueil public.
+    return false;
+  }
+}
+
 export default function NotFound() {
   const [connecte, setConnecte] = useState(false);
 
   // La marque que lit le cadre de l'application pour ne pas rediriger vers la
   // connexion ; posée avant les effets du cadre (les effets des enfants tournent
   // en premier), retirée en quittant la page.
-  useLayoutEffect(() => {
+  useEffect(() => {
     document.documentElement.setAttribute("data-introuvable", "1");
-    try { setConnecte(!!localStorage.getItem("tdb_token")); } catch { /* stockage indisponible */ }
-    return () => document.documentElement.removeAttribute("data-introuvable");
+    setConnecte(sessionOuverte());
+    return () => { document.documentElement.removeAttribute("data-introuvable"); };
   }, []);
 
   return (

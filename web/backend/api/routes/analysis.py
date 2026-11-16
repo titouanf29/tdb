@@ -97,6 +97,20 @@ def price_decimals(value) -> int:
     return 8
 
 
+def _rendement_fraction(v):
+    """Le rendement du dividende en fraction (0,0174 pour 1,74 %), quelle que soit la source.
+
+    yfinance a changé d'unité : il rend désormais 1,74 là où il rendait 0,0174.
+    Une valeur au-dessus de 0,5 est donc un pourcentage, à ramener en fraction."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    if f != f or f < 0:
+        return None
+    return f / 100 if f > 0.5 else f
+
+
 def _px(value, default=None):
     """Un PRIX, arrondi selon sa grandeur. Pour un pourcentage ou un ratio,
     utiliser _safe(..., 2) : ceux-là n'ont pas ce problème."""
@@ -1268,7 +1282,11 @@ async def analyze_asset(
             "forward_pe": info.get("forwardPE"),
             "peg_ratio": info.get("pegRatio"),
             "price_to_book": info.get("priceToBook"),
-            "dividend_yield": info.get("dividendYield"),
+            # EN FRACTION, QUELLE QUE SOIT LA SOURCE. Les versions récentes de
+            # yfinance renvoient déjà un pourcentage (1,74 pour 1,74 %) ; l'écran,
+            # qui multiplie par cent, affichait « 174,00 % » sur Air Liquide, et un
+            # détenteur l'a vu en une seconde. Aucun rendement réel ne dépasse 50 %.
+            "dividend_yield": _rendement_fraction(info.get("dividendYield")),
             "profit_margin": info.get("profitMargins"),
             "revenue_growth": info.get("revenueGrowth"),
             "earnings_growth": info.get("earningsGrowth"),
