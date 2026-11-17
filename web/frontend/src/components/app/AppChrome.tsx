@@ -11,6 +11,7 @@ import {
 import { Notifications } from "./Notifications";
 import { ReussiteNimbo } from "./ReussiteNimbo";
 import { BandeauVerification } from "./BandeauVerification";
+import { transitionsNatives } from "./TransitionsDePage";
 import { MessagesEquipe } from "./MessagesEquipe";
 import { VisiteGuidee } from "./VisiteGuidee";
 import { AideNimbo } from "./AideNimbo";
@@ -77,11 +78,16 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   const area = areaForPath(pathname);
   const curtain = useRouteCurtain(pathname ?? "");
   const [anim] = useAnimationsEnabled();
+  // Le rideau de nuages ne sert plus que de repli : quand le navigateur sait
+  // faire une vraie transition entre les pages (TransitionsDePage), c'est elle
+  // qui montre le changement.
+  const [natives, setNatives] = useState(false);
+  useEffect(() => { setNatives(transitionsNatives()); }, [anim]);
 
   return (
     <div className="cap relative min-h-screen">
       <AnimationsApp />
-      <CloudCurtain active={curtain && anim} />
+      <CloudCurtain active={curtain && anim && !natives} />
       <TopBar area={area} />
       {/* La marge du bas suit la barre ET l'indicateur d'accueil : le
           dernier élément d'une page doit pouvoir remonter au-dessus des
@@ -201,6 +207,7 @@ function TopBar({ area }: { area?: NavArea }) {
   return (
     <header
       ref={entete}
+      data-vt-nom="entete"
       className="sticky top-0 z-40"
       style={{
         backgroundColor: "var(--cap-bg)",
@@ -660,6 +667,7 @@ function MobileTabs() {
   return (
     <>
       <nav
+        data-vt-nom="onglets"
         className="fixed inset-x-0 bottom-0 z-40 lg:hidden"
         style={{
           // Translucide et flouté : le contenu qui défile se devine dessous,

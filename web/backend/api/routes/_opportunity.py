@@ -587,3 +587,37 @@ def plan_entree(
             else ""
         ),
     }
+
+
+# ── Le repère et le stop, d'accord entre eux ─────────────────────────────────
+#
+# La phrase actionnable est écrite avant que Nimbo ne vérifie l'opportunité
+# avec le plan du profil. Quand il propose d'acheter, le stop qu'il affiche
+# vient de l'analyse (des multiples d'ATR), et il peut contredire le repère
+# de la phrase : « la moyenne 20 à 9,591 sert de repère : la tenir maintient
+# le scénario » à côté de « stop 9,627 ». Le stop est au-dessus du repère : on
+# serait sorti avant que le scénario ne soit démenti. Un lecteur l'a relevé.
+#
+# De même, « la repasser le relancerait » (le cours est sous sa moyenne) suivi
+# de « Nimbo propose d'acheter » : l'achat repose alors sur le score, pas sur
+# la tendance courte, et la carte doit le dire au lieu de laisser deux phrases
+# se contredire.
+
+def accorder_repere(action: str, *, ema20: float | None, price: float,
+                    stop: float | None, sens: str | None) -> str:
+    """La phrase actionnable, réécrite quand le plan proposé la contredit."""
+    if not action.startswith("La moyenne 20") or not ema20 or sens != "long":
+        return action
+    if price > ema20:
+        if stop is not None and stop >= ema20:
+            return (
+                f"La moyenne 20 à {_fmt(ema20)} reste le repère de la tendance, mais le stop "
+                f"proposé, à {_fmt(stop)}, est au-dessus : c'est lui qui protège, et vous "
+                "sortiriez avant qu'elle ne cède."
+            )
+        return action
+    return (
+        f"Le cours est sous sa moyenne 20 ({_fmt(ema20)}) : l'achat repose sur le score, pas "
+        "sur la tendance courte. La repasser confirmerait le scénario ; tant qu'il reste en "
+        "dessous, le stop fait tout le travail."
+    )

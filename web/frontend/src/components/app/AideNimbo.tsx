@@ -48,6 +48,25 @@ export function AideNimbo() {
   const [fil, setFil] = useState<Bulle[]>([]);
   const [saisie, setSaisie] = useState("");
   const [indice, setIndice] = useState(false);
+  // Au téléphone, le nuage cachait la fin des lignes à droite pendant la
+  // lecture. Il s'efface quand on descend dans la page et revient dès qu'on
+  // remonte ou qu'on s'arrête un instant.
+  const [enLecture, setEnLecture] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || window.matchMedia("(min-width: 1024px)").matches) return;
+    let dernierY = window.scrollY;
+    let minuteur = 0;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y > dernierY + 6 && y > 120) setEnLecture(true);
+      else if (y < dernierY - 6) setEnLecture(false);
+      dernierY = y;
+      window.clearTimeout(minuteur);
+      minuteur = window.setTimeout(() => setEnLecture(false), 1400);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); window.clearTimeout(minuteur); };
+  }, []);
   const fin = useRef<HTMLDivElement>(null);
   const champ = useRef<HTMLInputElement>(null);
 
@@ -146,7 +165,7 @@ export function AideNimbo() {
   return (
     <>
       {/* Le bouton : Nimbo lui-même, au-dessus de la barre du bas sur téléphone. */}
-      <div className={`fixed bottom-[calc(4.6rem+env(safe-area-inset-bottom,0px))] right-4 z-40 flex-col items-end gap-2 lg:bottom-6 lg:right-6 ${saisieEnBas ? "hidden lg:flex" : "flex"}`}
+      <div className={`fixed bottom-[calc(4.6rem+env(safe-area-inset-bottom,0px))] right-4 z-40 flex-col items-end gap-2 transition-[opacity,transform] duration-300 lg:bottom-6 lg:right-6 lg:translate-x-0 lg:opacity-100 ${saisieEnBas ? "hidden lg:flex" : "flex"} ${enLecture && !ouvert ? "pointer-events-none translate-x-[4.5rem] opacity-0" : ""}`}
         data-aide-nimbo>
         <AnimatePresence>
           {indice && !ouvert && (

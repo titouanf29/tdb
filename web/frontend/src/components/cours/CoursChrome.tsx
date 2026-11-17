@@ -13,7 +13,11 @@ export function CoursChrome({ children }: { children: React.ReactNode }) {
     <div className="cap relative min-h-screen">
       <header className="sticky top-0 z-30 border-b backdrop-blur" style={{ borderColor: "var(--cap-line)", backgroundColor: "color-mix(in srgb, var(--cap-bg) 88%, transparent)" }}>
         <div className="mx-auto flex h-16 max-w-[82rem] items-center justify-between gap-4 px-4 sm:px-8">
-          <Link href="/" aria-label="CaptenTDB, accueil"><CaptenLogo size={22} /></Link>
+          {/* Au téléphone, la marque seule : avec le nom, les deux portes débordaient de l'écran. */}
+          <Link href="/" aria-label="CaptenTDB, accueil" className="shrink-0">
+            <CaptenLogo size={22} className="hidden sm:inline-flex" />
+            <CaptenLogo size={24} showName={false} className="sm:hidden" />
+          </Link>
           <nav className="flex items-center gap-4 text-[0.95rem] sm:gap-6">
             <Link href="/cours" className="hidden sm:inline" style={{ color: "var(--cap-ink-2)" }}>Les leçons</Link>
             <Link href="/actifs" className="hidden sm:inline" style={{ color: "var(--cap-ink-2)" }}>Analyses du jour</Link>

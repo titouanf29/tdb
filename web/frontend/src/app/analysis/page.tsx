@@ -472,6 +472,9 @@ function AnalysisScreen() {
   // Dans la devise de cotation de l'actif (dollars pour Apple, euros pour LVMH…).
   const assetPrice = useFormatAssetPrice(analysis?.symbol ?? symbol);
 
+  // Au téléphone, les réglages tiennent en une ligne avant tout actif et une fois l'actif analysé.
+  const reglagesReplies = (!!analysis || !symbol) && !reglagesOuverts;
+
   return (
     <>
       <WeatherBackdrop
@@ -589,7 +592,10 @@ function AnalysisScreen() {
           {/* SUR TÉLÉPHONE, UNE FOIS L'ACTIF ANALYSÉ, les réglages tiennent en
               une ligne : ils prenaient un écran et demi avant le verdict, et
               on ne les change pas à chaque visite. Un geste les rouvre. */}
-          {analysis && !reglagesOuverts && (
+          {/* Et AVANT tout actif aussi : horizon, cadran de risque et multiples
+              d'ATR affichés avant même le nom d'un actif, un visiteur a « tout
+              ignoré » et la boîte avec. */}
+          {reglagesReplies && (
             <div className="mt-4 flex items-center justify-between gap-3 border-t pt-3 sm:hidden" style={{ borderColor: "var(--cap-line)" }}>
               <Text size="small" as="span" tone="ink" className="min-w-0">
                 {style.label.fr} · {timeframe} · risque {RISQUE[niveauRisque(settings.riskLevel)].pct.toLocaleString("fr-FR")} %
@@ -601,7 +607,7 @@ function AnalysisScreen() {
               </button>
             </div>
           )}
-          <div className={analysis && !reglagesOuverts ? "hidden sm:block" : undefined}>
+          <div className={reglagesReplies ? "hidden sm:block" : undefined}>
           <div className="mt-5 border-t pt-5" style={{ borderColor: "var(--cap-line)" }}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Text size="caption" as="span">Sur quel horizon analysez-vous ?</Text>
@@ -903,6 +909,18 @@ function AnalysisScreen() {
 
 /* ── Level 1 : the verdict ────────────────────────────────────────────────── */
 
+/** « Baissier » en haut, « verdict neutre » plus bas : la phrase qui dit pourquoi les deux tiennent. */
+function TendanceContreVerdict({ a, ton }: Readonly<{ a: Analysis; ton: "up" | "down" | "neutral" }>) {
+  const neutre = !!a.nimbo && !a.nimbo.propose && !!a.nimbo.raison?.startsWith("Verdict neutre");
+  if (ton === "neutral" || !neutre) return null;
+  return (
+    <Text size="small" className="mt-1 max-w-[36rem]">
+      La tendance de fond est {ton === "down" ? "baissière" : "haussière"}, mais le verdict, qui pèse
+      tous les signaux, reste au milieu : Nimbo n&apos;en tire ni achat ni vente pour l&apos;instant.
+    </Text>
+  );
+}
+
 function Verdict({
   analysis: a,
   assetPrice,
@@ -1050,6 +1068,10 @@ function Verdict({
             {tendanceExpliquee(a, assetPrice) && (
               <Text size="small" className="mt-1 max-w-[36rem]">{tendanceExpliquee(a, assetPrice)}</Text>
             )}
+            {/* « Baissier » ici, « verdict neutre » dix lignes plus bas : lequel
+                croire ? Les deux : la tendance dit où va le cours, le verdict
+                pèse tous les signaux. La phrase le dit avant qu'on ne cherche. */}
+            <TendanceContreVerdict a={a} ton={dir.tone} />
             {/* Ce qui a bougé depuis la dernière lecture, un autre jour. */}
             <DepuisLecture a={a} score={Math.round(a.profile_score?.total ?? a.score.total)} />
           </div>
@@ -1939,7 +1961,7 @@ function Advanced({ analysis: a, assetPrice }: { analysis: Analysis; assetPrice:
             <>
               <Row
                 label="Dernière bougie"
-                value={`${Math.round(a.data_quality.last_bar_age_minutes)} min`}
+                value={ageBougie(a.data_quality.last_bar_age_minutes)}
                 tone={a.data_quality.stale ? "down" : "ink"}
               />
               <Row label="Données manquantes" value={`${fr(a.data_quality.nan_ratio * 100, 1)} %`} />
@@ -2083,6 +2105,16 @@ function Indicator({
       )}
     </li>
   );
+}
+
+/** « 21098 min » ne se lit pas : « 14 j 15 h », « 3 h 20 », « 12 min ». */
+function ageBougie(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
+  if (m < 60) return `${m} min`;
+  if (m < 1440) return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`;
+  const j = Math.floor(m / 1440);
+  const h = Math.floor((m % 1440) / 60);
+  return h ? `${j} j ${h} h` : `${j} j`;
 }
 
 function Row({

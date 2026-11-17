@@ -1,5 +1,6 @@
 "use client";
 
+import { TransitionsDePage } from "@/components/app/TransitionsDePage";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
@@ -106,6 +107,10 @@ function AuthShell({
   // Redirect unauthenticated users — only runs on auth/protected pages
   useEffect(() => {
     if (isAuthPage) return;
+    // Une adresse inconnue n'est pas une page protégée : la page « introuvable »
+    // (qui pose cette marque avant que cet effet ne tourne) reste visible au lieu
+    // d'envoyer le visiteur sans compte vers la connexion.
+    if (document.documentElement.hasAttribute("data-introuvable")) return;
     if (!isLoading && !isAuthenticated) {
       router.push("/login");
     }
@@ -218,6 +223,17 @@ function AuthShell({
 // ── AppLayout: routes to the correct shell, no hooks needed here ──────────────
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
+  // Les transitions entre les pages valent pour tout le site : vitrine,
+  // connexion, leçons publiques et application.
+  return (
+    <>
+      <TransitionsDePage />
+      <Cadre>{children}</Cadre>
+    </>
+  );
+}
+
+function Cadre({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const isLandingPage = !pathname || pathname === "/";

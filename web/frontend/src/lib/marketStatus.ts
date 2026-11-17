@@ -143,82 +143,85 @@ export function getMarketHoursDisplay(marketKey: string): string {
 export function getTimeUntilChange(marketKey: string): string {
   const config = marketHoursConfig[marketKey];
   if (!config || config.alwaysOpen) return "";
-
   const isOpen = isMarketOpen(marketKey);
   const now = new Date();
-
-  // ── Forex / Commodities: 24h Mon-Fri, anchored to Paris time ─────────────────
-  if (config.alwaysOpenWeekdays) {
-    const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-    const pDay = parisTime.getDay();
-    const pCurrentMin = parisTime.getHours() * 60 + parisTime.getMinutes();
-
-    if (isOpen && pDay === 5) {
-      // Friday: show countdown to 22:00 close
-      const diff = 22 * 60 - pCurrentMin;
-      if (diff > 0) {
-        const h = Math.floor(diff / 60);
-        const m = diff % 60;
-        return `Ferme dans ${h}h${m.toString().padStart(2, "0")}`;
-      }
-    }
-
-    if (!isOpen) {
-      // Friday ≥22:00 or Saturday → reopens Sunday 23:00
-      if (pDay === 5 || pDay === 6) return "Ouvre dim à 23:00";
-      // Sunday before 23:00 → countdown to tonight
-      if (pDay === 0) {
-        const diff = 23 * 60 - pCurrentMin;
-        if (diff > 0) {
-          const h = Math.floor(diff / 60);
-          const m = diff % 60;
-          return `Ouvre dans ${h}h${m.toString().padStart(2, "0")}`;
-        }
-      }
-    }
-    return "";
-  }
+  if (config.alwaysOpenWeekdays) return changementSemaineContinue(isOpen, now);
 
   // ── Standard markets (Europe, USA, Asia) ──────────────────────────────────────
   const localTime = new Date(now.toLocaleString("en-US", { timeZone: config.timezone }));
-  const currentDay = localTime.getDay();
   const currentMinutes = localTime.getHours() * 60 + localTime.getMinutes();
-
   const [openH, openM] = config.openTime.split(":").map(Number);
   const [closeH, closeM] = config.closeTime.split(":").map(Number);
   const openMinutes = openH * 60 + openM;
-  const closeMinutes = closeH * 60 + closeM;
 
-  if (isOpen) {
-    const diff = closeMinutes - currentMinutes;
-    if (diff > 0) {
-      const h = Math.floor(diff / 60);
-      const m = diff % 60;
-      return `Ferme dans ${h}h${m.toString().padStart(2, "0")}`;
-    }
-  } else {
-    // If we're on an open weekday but before opening, show a simple countdown
-    if (!config.closedDays.includes(currentDay) && openMinutes > currentMinutes) {
-      const diff = openMinutes - currentMinutes;
-      const h = Math.floor(diff / 60);
-      const m = diff % 60;
-      return `Ouvre dans ${h}h${m.toString().padStart(2, "0")}`;
-    }
-
-    // Walk forward to find the next truly open day (skips all closedDays)
-    let daysAhead = 1;
-    let nextDay = (currentDay + 1) % 7;
-    while (config.closedDays.includes(nextDay)) {
-      daysAhead++;
-      nextDay = (nextDay + 1) % 7;
-    }
-
-    const dayNamesFr = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
-    if (daysAhead === 1) {
-      return `Ouvre demain à ${config.openTime}`;
-    }
-    return `Ouvre ${dayNamesFr[nextDay]} à ${config.openTime}`;
+  if (isOpen) return dans("Ferme", closeH * 60 + closeM - currentMinutes);
+  // Un jour de séance, avant l'ouverture : un simple compte à rebours.
+  if (!config.closedDays.includes(localTime.getDay()) && openMinutes > currentMinutes) {
+    return dans("Ouvre", openMinutes - currentMinutes);
   }
+  return prochaineOuverture(config.timezone, config.closedDays, localTime, openH, openM);
+}
 
+/** « Ferme dans 2h05 », ou rien quand l'écart n'est pas positif. */
+function dans(verbe: "Ouvre" | "Ferme", minutes: number): string {
+  if (minutes <= 0) return "";
+  return `${verbe} dans ${Math.floor(minutes / 60)}h${(minutes % 60).toString().padStart(2, "0")}`;
+}
+
+/** Forex et matières premières : séance continue du dimanche 23 h au vendredi 22 h, heure de Paris. */
+function changementSemaineContinue(isOpen: boolean, now: Date): string {
+  const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const pDay = parisTime.getDay();
+  const pCurrentMin = parisTime.getHours() * 60 + parisTime.getMinutes();
+  if (isOpen) return pDay === 5 ? dans("Ferme", 22 * 60 - pCurrentMin) : "";
+  // Vendredi soir ou samedi : réouverture dimanche 23 h ; dimanche avant 23 h : compte à rebours.
+  if (pDay === 5 || pDay === 6) return "Ouvre dim à 23 h 00";
+  if (pDay === 0) return dans("Ouvre", 23 * 60 - pCurrentMin);
   return "";
+}
+
+/**
+ * « Ouvre demain à 09:00 », « Ouvre lun à 15:30, heure de Paris » : la prochaine
+ * séance, en sautant les jours fermés.
+ *
+ * L'HEURE EST CELLE DE PARIS. « Ouvre lun à 09:30 » pour New York se lisait à
+ * côté de « il rouvre lundi vers 15 h 30 » sur les cartes du scanner : la même
+ * ouverture, deux heures différentes sur la même page. L'écran parle à
+ * quelqu'un en France ; l'heure locale de la place reste dans l'infobulle des
+ * horaires.
+ */
+function prochaineOuverture(tz: string, joursFermes: number[], localTime: Date, openH: number, openM: number): string {
+  let daysAhead = 1;
+  let nextDay = (localTime.getDay() + 1) % 7;
+  while (joursFermes.includes(nextDay)) {
+    daysAhead++;
+    nextDay = (nextDay + 1) % 7;
+  }
+  const dayNamesFr = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
+  const heure = heureDeParis(tz, localTime, daysAhead, openH, openM);
+  const precision = tz === "Europe/Paris" ? "" : ", heure de Paris";
+  const jour = daysAhead === 1 ? "demain" : dayNamesFr[nextDay];
+  return `Ouvre ${jour} à ${heure}${precision}`;
+}
+
+/** Le décalage, en minutes, entre l'heure murale d'un fuseau et l'heure UTC à un instant donné. */
+function decalageMinutes(tz: string, instant: Date): number {
+  const mur = new Date(instant.toLocaleString("en-US", { timeZone: tz }));
+  const utc = new Date(instant.toLocaleString("en-US", { timeZone: "UTC" }));
+  return Math.round((mur.getTime() - utc.getTime()) / 60000);
+}
+
+/**
+ * « 15:30 » : l'ouverture d'une place, dans `joursPlusTard` jours à `h:m` heure
+ * locale de la place, exprimée à l'heure de Paris. Le décalage est pris à
+ * l'instant de l'ouverture elle-même, pas maintenant : entre fin octobre et
+ * début novembre, Paris et New York ne changent pas d'heure la même semaine.
+ */
+function heureDeParis(tz: string, localeMaintenant: Date, joursPlusTard: number, h: number, m: number): string {
+  const approx = new Date(Date.UTC(
+    localeMaintenant.getFullYear(), localeMaintenant.getMonth(), localeMaintenant.getDate() + joursPlusTard, h, m));
+  const instant = new Date(approx.getTime() - decalageMinutes(tz, approx) * 60000);
+  const [hh, mm] = instant.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" }).split(":");
+  // « 9 h 00 », « 15 h 30 » : l'écriture du reste du site, pas « 09:00 ».
+  return `${Number(hh)} h ${mm}`;
 }

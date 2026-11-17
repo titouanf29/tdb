@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button, Heading, Nimbo, Text } from "@/components/design-system";
 
@@ -8,9 +9,32 @@ import { Button, Heading, Nimbo, Text } from "@/components/design-system";
  *
  * Nimbo, surpris, à la place du grand « 404 » lumineux qui datait d'avant la
  * refonte. Trois sorties utiles plutôt qu'une impasse, et le retour en
- * arrière pour qui s'est trompé de lien.
+ * arrière pour qui s'est trompé de lien. Les sorties dépendent de la personne :
+ * un visiteur sans compte repart vers l'accueil et les pages publiques, pas
+ * vers un espace qui lui demanderait de se connecter.
  */
+/** Un jeton en mémoire locale : la personne a un espace où repartir. */
+function sessionOuverte(): boolean {
+  try {
+    return !!localStorage.getItem("tdb_token");
+  } catch {
+    // Stockage indisponible (navigation privée, réglages stricts) : on repart vers l'accueil public.
+    return false;
+  }
+}
+
 export default function NotFound() {
+  const [connecte, setConnecte] = useState(false);
+
+  // La marque que lit le cadre de l'application pour ne pas rediriger vers la
+  // connexion ; posée avant les effets du cadre (les effets des enfants tournent
+  // en premier), retirée en quittant la page.
+  useEffect(() => {
+    document.documentElement.setAttribute("data-introuvable", "1");
+    setConnecte(sessionOuverte());
+    return () => { document.documentElement.removeAttribute("data-introuvable"); };
+  }, []);
+
   return (
     // Plein écran : une adresse inconnue ne figure pas dans les routes de la
     // nouvelle application, et AppLayout l'enveloppait dans l'ancienne mise
@@ -28,9 +52,19 @@ export default function NotFound() {
         non plus, voici par où repartir.
       </Text>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Button href="/dashboard">Mon espace</Button>
-        <Button href="/analysis" variant="secondary">Analyser un actif</Button>
-        <Button href="/markets" variant="secondary">Les marchés</Button>
+        {connecte ? (
+          <>
+            <Button href="/dashboard">Mon espace</Button>
+            <Button href="/analysis" variant="secondary">Analyser un actif</Button>
+            <Button href="/markets" variant="secondary">Les marchés</Button>
+          </>
+        ) : (
+          <>
+            <Button href="/">L&apos;accueil</Button>
+            <Button href="/cours" variant="secondary">Les leçons</Button>
+            <Button href="/actifs" variant="secondary">Analyses du jour</Button>
+          </>
+        )}
       </div>
       <button
         type="button"

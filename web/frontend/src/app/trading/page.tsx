@@ -81,7 +81,9 @@ export default function TradingPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   // Ce qui vient d'être ouvert, pour proposer de noter le plan au journal.
-  const [ouverte, setOuverte] = useState<{ symbole: string; sens: string; prix: number } | null>(null);
+  const [ouverte, setOuverte] = useState<{
+    symbole: string; sens: string; prix: number; montant: number; stop: number | null; objectif: number | null;
+  } | null>(null);
 
   const levelsFromPlan = useRef(planSl != null || planTp != null);
   const levelsTouched = useRef(false);
@@ -310,7 +312,10 @@ export default function TradingPage() {
         ? `${r.turbo.unites} titres achetés à ${moneyTitre(r.turbo.prix_titre)}${r.frais ? `, plus ${money(r.frais)} de frais` : ""}.`
         : `Position ouverte à ${assetPrice(r.entry_price || price)}.`;
       setSuccess(fait);
-      setOuverte({ symbole: symbol.toUpperCase(), sens: direction, prix: r.entry_price || price });
+      setOuverte(ouvertureDe({
+        symbole: symbol, sens: direction, prix: r.entry_price || price, turbo, coutTitres, montant: amount,
+        stop: stopLoss, useSL, erreurStop, objectif: takeProfit, useTP, erreurObjectif,
+      }));
       // La confirmation prend la place du formulaire, en haut : elle était
       // tout en bas, derrière les bulles, et deux visiteurs ont cru que
       // l'ordre avait échoué.
@@ -378,7 +383,13 @@ export default function TradingPage() {
           </div>
         )}
 
-        <form onSubmit={submit} className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]" noValidate>
+        {success && (
+          <Confirmation fait={success} ouverte={ouverte} money={money} assetPrice={assetPrice}
+            encore={() => { setSuccess(""); setOuverte(null); }} />
+        )}
+        {/* Le formulaire reste monté, masqué pendant la confirmation : pas de
+            branche imbriquée dans le rendu, et les champs gardent leur état. */}
+        <form onSubmit={submit} hidden={!!success} className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] [&[hidden]]:hidden" noValidate>
           {/* ── Left: the decision ──────────────────────────────────────── */}
           {/* min-w-0: a grid child will not shrink below its intrinsic width
               without it, so one wide row inside stretches the whole layout. */}
@@ -705,43 +716,11 @@ export default function TradingPage() {
             </Panel>
 
             {error && <FormError>{error}</FormError>}
-            {success && (
-              <div
-                role="status"
-                className="px-3 py-2.5 text-[0.85rem]"
-                style={{
-                  borderRadius: "var(--cap-r-md)",
-                  backgroundColor: "rgba(23,138,88,0.08)",
-                  boxShadow: "inset 0 0 0 1px rgba(23,138,88,0.25)",
-                  color: "var(--cap-up)",
-                }}
-              >
-                <span className="flex items-center gap-3">
-                  <Nimbo humeur="fete" taille={48} />
-                  <span>
-                    <span className="block font-semibold">Bravo, c&apos;est fait !</span>
-                    {success}
-                  </span>
-                </span>
-                <span className="mt-3 flex flex-wrap gap-2.5">
-                  <Button href="/wallet" size="md">Voir mon wallet</Button>
-                  {ouverte && (
-                    <Button variant="secondary" size="md"
-                      href={`/journal?nouveau=${encodeURIComponent(ouverte.symbole)}&sens=${ouverte.sens}&prix=${ouverte.prix}`}>
-                      Noter mon plan au journal
-                    </Button>
-                  )}
-                  <Button variant="quiet" size="md" type="button" onClick={() => { setSuccess(""); setOuverte(null); }}>
-                    Ouvrir une autre position
-                  </Button>
-                </span>
-              </div>
-            )}
 
             {/* CE QUI VA SE PASSER, EN UNE PHRASE, AVANT LE BOUTON. Le levier
                 et l'exposition se lisaient dans un tableau au-dessus ; un
                 visiteur a ouvert ×5 sans l'avoir vu. Ici, le bouton le dit. */}
-            {!success && quote && price > 0 && (
+            {quote && price > 0 && (
               <Text size="small" tone="ink">
                 Vous allez {direction === "LONG" ? "acheter" : "vendre"} {getAssetName(symbol.toUpperCase())} pour{" "}
                 {money(turbo ? coutTitres : amount)}
@@ -752,7 +731,7 @@ export default function TradingPage() {
                 {useTP && takeProfit != null && !erreurObjectif && <>, objectif à {assetPrice(takeProfit)}</>}.
               </Text>
             )}
-            {!success && <Button
+            <Button
               type="submit"
               size="lg"
               disabled={submitting || !quote || price <= 0 || !!erreurStop || !!erreurObjectif}
@@ -764,11 +743,78 @@ export default function TradingPage() {
                   Ouverture…
                 </>
               ) : libelleBouton}
-            </Button>}
+            </Button>
           </div>
         </form>
       </div>
     </>
+  );
+}
+
+/** Ce que la confirmation affiche de l'ordre qui vient de passer. */
+function ouvertureDe(o: {
+  symbole: string; sens: string; prix: number; turbo: boolean; coutTitres: number; montant: number;
+  stop?: number | null; useSL: boolean; erreurStop?: string | null;
+  objectif?: number | null; useTP: boolean; erreurObjectif?: string | null;
+}) {
+  const stopPose = o.useSL && !o.erreurStop;
+  const objectifPose = o.useTP && !o.erreurObjectif;
+  return {
+    symbole: o.symbole.toUpperCase(), sens: o.sens, prix: o.prix,
+    montant: o.turbo ? o.coutTitres : o.montant,
+    stop: stopPose ? o.stop ?? null : null,
+    objectif: objectifPose ? o.objectif ?? null : null,
+  };
+}
+
+/**
+ * La confirmation, à la place du formulaire.
+ *
+ * Le formulaire restait affiché après l'ordre et se recalculait sur le
+ * nouveau solde (« 1 % de 8 383 € → 1 356 € ») au-dessus du « Bravo », à
+ * moitié caché par le message flottant : un visiteur a cru qu'on lui
+ * proposait d'en reprendre. Ici, ce qui vient d'être fait, les trois nombres
+ * du plan, et la suite au choix.
+ */
+function Confirmation({ fait, ouverte, money, assetPrice, encore }: Readonly<{
+  fait: string;
+  ouverte: { symbole: string; sens: string; prix: number; montant: number; stop: number | null; objectif: number | null } | null;
+  money: (v: number) => string;
+  assetPrice: (v: number) => string;
+  encore: () => void;
+}>) {
+  const nom = ouverte ? getAssetName(ouverte.symbole) : "";
+  return (
+    <Panel>
+      <div role="status" className="flex items-start gap-4">
+        <Nimbo humeur="fete" taille={64} className="shrink-0" />
+        <div className="min-w-0">
+          <Heading level={2}>Bravo, c&apos;est fait !</Heading>
+          <Text className="mt-2" tone="ink">{fait}</Text>
+          {ouverte && (
+            <Text size="small" className="mt-3 max-w-[36rem]">
+              {ouverte.sens === "SHORT" ? "Vendu" : "Acheté"} <Num>{money(ouverte.montant)}</Num> de {nom}
+              {nom !== ouverte.symbole ? ` (${ouverte.symbole})` : ""} à <Num>{assetPrice(ouverte.prix)}</Num>
+              {ouverte.stop != null && <>, stop à <Num>{assetPrice(ouverte.stop)}</Num></>}
+              {ouverte.objectif != null && <>, objectif à <Num>{assetPrice(ouverte.objectif)}</Num></>}.
+              {ouverte.stop == null && " Sans stop : le wallet permet d'en poser un."}
+            </Text>
+          )}
+          <div className="mt-5 flex flex-wrap gap-2.5">
+            <Button href="/wallet" size="md">Voir mon wallet</Button>
+            {ouverte && (
+              <Button variant="secondary" size="md"
+                href={`/journal?nouveau=${encodeURIComponent(ouverte.symbole)}&sens=${ouverte.sens}&prix=${ouverte.prix}`}>
+                Noter mon plan au journal
+              </Button>
+            )}
+            <Button variant="quiet" size="md" type="button" onClick={encore}>
+              Ouvrir une autre position
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Panel>
   );
 }
 

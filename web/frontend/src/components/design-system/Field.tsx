@@ -139,13 +139,23 @@ export function Checkbox({
   onChange,
   children,
   className,
+  id: idDonne,
+  invalid = false,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   children: React.ReactNode;
   className?: string;
+  /** Un identifiant stable, pour y amener le focus depuis un message d'erreur. */
+  id?: string;
+  /** La case manque : son contour passe au rouge, comme un champ en erreur. */
+  invalid?: boolean;
 }) {
-  const id = useId();
+  const idGenere = useId();
+  const id = idDonne ?? idGenere;
+  let contour = "var(--cap-line-strong)";
+  if (checked) contour = "var(--cap-ocean)";
+  else if (invalid) contour = "var(--cap-down)";
   return (
     <div className={cn("flex items-start gap-3", className)}>
       {/* The native input stays in the tree — visually hidden, not replaced —
@@ -156,6 +166,7 @@ export function Checkbox({
           type="checkbox"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
+          aria-invalid={invalid || undefined}
           className="peer sr-only"
         />
         <label
@@ -164,7 +175,7 @@ export function Checkbox({
           style={{
             borderRadius: "5px",
             backgroundColor: checked ? "var(--cap-ocean)" : "var(--cap-bg)",
-            boxShadow: `inset 0 0 0 1px ${checked ? "var(--cap-ocean)" : "var(--cap-line-strong)"}`,
+            boxShadow: `inset 0 0 0 ${invalid && !checked ? 2 : 1}px ${contour}`,
           }}
         >
           {checked && <Check className="h-3 w-3 text-white" strokeWidth={3} />}

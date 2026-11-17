@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
@@ -32,6 +33,10 @@ function lireMasquees(uid: number): number[] {
 export function MessagesEquipe() {
   const { user } = useAuth();
   const reduit = useMouvementReduit();
+  // Sur l'accueil seulement. Le même bandeau occupait le tiers haut de
+  // chaque page, trading, wallet, marchés, leçons, jusqu'au « Compris » : un
+  // mot de l'équipe se lit en arrivant, pas à chaque écran.
+  const pathname = usePathname();
   const [message, setMessage] = useState<Message | null>(null);
   const [deplie, setDeplie] = useState(false);
 
@@ -50,7 +55,7 @@ export function MessagesEquipe() {
     return () => { fini = true; };
   }, [user?.id]);
 
-  if (!message || !user) return null;
+  if (!message || !user || pathname !== "/dashboard") return null;
 
   const fermer = () => {
     if (message.genre === "nouveaute") equipeAPI.nouveauteLue(message.n.id).catch(() => {});
