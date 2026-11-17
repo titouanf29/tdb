@@ -236,8 +236,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 function Cadre({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // La page d'essai de l'accueil se lit dans le cadre de l'accueil, sans compte.
-  const isLandingPage = !pathname || pathname === "/" || pathname === "/essais/accueil" || pathname === "/essais/banque";
+  const isLandingPage = !pathname || pathname === "/";
   // The edge middleware rewrites here; it must render on its own, without the
   // authenticated shell (which would send an anonymous visitor to /login).
   const isMaintenancePage = pathname === "/maintenance";
