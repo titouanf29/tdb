@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookOpen, ChevronDown, Home, LineChart, Search, Wallet } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
-import { Button, CaptenLogo, Heading, LigneDatee, Text } from "@/components/design-system";
+import { Button, CaptenLogo, Heading, LigneDatee, Text, WeatherBackdrop, useAnimationsEnabled } from "@/components/design-system";
 import { ListeSuggestions, useAssetSuggestions } from "@/components/app/assetSearch";
 
 /**
@@ -120,6 +120,7 @@ function OngletsTelephone() {
 export default function EssaiEspace() {
   const { user } = useAuth();
   const [ouvert, setOuvert] = useState<string | null>(null);
+  const [anim] = useAnimationsEnabled();
   const prenom = user?.username ?? "";
   // Posée directement dans <body> : par-dessus la barre actuelle du site, pour comparer honnêtement.
   const [monte, setMonte] = useState(false);
@@ -127,22 +128,13 @@ export default function EssaiEspace() {
   if (!monte) return null;
   return createPortal(
     <div className="cap fixed inset-0 z-[200] overflow-y-auto" style={{ backgroundColor: "var(--cap-bg)", color: "var(--cap-ink)" }}>
-      <style>{`.ess-couche{position:absolute;inset:64px 0 auto;height:min(460px,62vh);background:url(/ciel/couche-jour.webp) center 40%/cover no-repeat;pointer-events:none;animation:ess-vol 60s ease-in-out infinite alternate;transform-origin:50% 40%}
-.ess-couche::after{content:"";position:absolute;inset:auto 0 0;height:45%;background:linear-gradient(transparent,var(--cap-bg))}
-@media (max-width:640px){.ess-couche{background-image:url(/ciel/couche-jour-tel.webp);height:380px}}
-@keyframes ess-vol{to{transform:scale(1.05)}}
-@media (prefers-reduced-motion:reduce){.ess-couche{animation:none}}
-.anim-off .ess-couche{animation:none}`}</style>
+      {/* Les nuages du site, ceux de l'accueil de l'espace aujourd'hui. */}
+      <WeatherBackdrop condition="fair" enabled={anim} />
       <Entete ouvert={ouvert} setOuvert={setOuvert} />
-      {/* LA COUCHE DE NUAGES, VUE D'AVION. Des nuages calmes et réalistes, en plein
-          jour, à la place des nuages dessinés : le rêve reste, le ton devient
-          sérieux. L'image est calculée une fois (scripts/generer-couche-nuages.py).
-          Le texte se pose sur la partie de ciel uni, la recherche sur un panneau opaque. */}
-      <div className="ess-couche" aria-hidden />
       <main className="relative mx-auto max-w-[82rem] px-5 pb-32 pt-8 sm:px-8">
         <p className="cap-dateline mb-4 text-[0.92rem]"><LigneDatee /></p>
         <Heading level={1}>Bonjour{prenom ? `, ${prenom}` : ""}.</Heading>
-        <div className="mt-10 sm:mt-24"><GrandeRecherche /></div>
+        <div className="mt-6"><GrandeRecherche /></div>
 
         {/* Le menu déplié, pour le voir d'un coup d'œil. */}
         <section className="mt-10">
