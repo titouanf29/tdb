@@ -50,7 +50,7 @@ const NUIT_BORD = "var(--acc-nuit-bord)";
 
 /* ── 1. La question ─────────────────────────────────────────────────────── */
 
-export function Accroche() {
+export function Accroche({ carte }: Readonly<{ carte?: React.ReactNode }> = {}) {
   return (
     <section className="acc-hero" id="depart">
       <div className="acc-wrap acc-hero-grille">
@@ -69,7 +69,7 @@ export function Accroche() {
           </div>
           <p className="acc-note acc-monte">Gratuit, sans carte bancaire. L&apos;argent est fictif, les cours sont réels.</p>
         </div>
-        <CarteRisque />
+        {carte ?? <CarteRisque />}
       </div>
     </section>
   );
