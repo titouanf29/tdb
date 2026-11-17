@@ -463,6 +463,8 @@ export default function MarketsPage() {
                     : globalBreadth.margin < -0.05 ? "la baisse l'emporte de peu."
                     : "la journée est partagée."
                   }`}
+              {/* Le dimanche, les chiffres de Paris sont ceux de vendredi : on le dit. */}
+              {openCount > 0 && openCount < markets.length && " Pour les places fermées, ce sont les chiffres de leur dernière séance."}
             </Text>
           </div>
           <SegmentedControl

@@ -167,7 +167,7 @@
   margin-top: 14px; padding: 30px 24px 32px; border-radius: 22px; background: var(--acc-nuit); color: var(--acc-sur-nuit);
   box-shadow: 0 30px 50px -28px rgba(11, 23, 38, .75); font-size: clamp(1.7rem, 7.6vw, 2.5rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1.1;
 }
-.accueil .acc-reponse em { background: linear-gradient(var(--cap-ambre), var(--cap-ambre)) 0 94% / 100% 0.1em no-repeat; }
+.accueil .acc-reponse em { color: inherit; background: linear-gradient(var(--cap-ambre), var(--cap-ambre)) 0 94% / 100% 0.1em no-repeat; }
 .accueil .acc-reponse span { display: block; margin-top: 14px; color: var(--acc-sur-nuit-2); font-size: 1.05rem; font-weight: 500; letter-spacing: 0; line-height: 1.5; }
 
 /* ── 3. Trois gestes ── */
@@ -216,7 +216,7 @@
 /* ── 6. Le dernier mot ── */
 .accueil .acc-final { padding: calc(72px + var(--acc-bord)) 0 88px; }
 .accueil .acc-final .acc-cta { margin-top: 32px; }
-.accueil .acc-nuit [data-btn="primary"] { background-color: var(--acc-sur-nuit) !important; color: var(--acc-nuit) !important; }
+.accueil .acc-nuit [data-btn="primary"] { background-image: none !important; background-color: var(--acc-sur-nuit) !important; color: var(--acc-nuit) !important; }
 .accueil .acc-nuit .acc-lien-second { color: var(--acc-sur-nuit); }
 
 /* La barre d'action du téléphone : pleine, sous le pouce, quand le bouton du haut a disparu. */
@@ -228,7 +228,7 @@
 }
 .accueil .acc-dock.is-on { visibility: visible; transform: none; transition: transform .45s var(--acc-ease); }
 .accueil .acc-dock span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.accueil .acc-dock [data-btn="primary"] { flex: none; background-color: var(--acc-sur-nuit) !important; color: var(--acc-nuit) !important; }
+.accueil .acc-dock [data-btn="primary"] { flex: none; background-image: none !important; background-color: var(--acc-sur-nuit) !important; color: var(--acc-nuit) !important; }
 
 /* Apparition au défilement : seulement si le script tourne. */
 .acc-js .accueil .acc-reveal { opacity: 0; transform: translate3d(0, 28px, 0); transition: opacity .8s var(--acc-ease), transform .8s var(--acc-ease); transition-delay: var(--d, 0s); }

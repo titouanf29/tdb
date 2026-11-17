@@ -67,9 +67,15 @@ export function TextInput({
   describedBy,
   className,
   onBlur,
+  inputMode,
+  max,
 }: {
   id?: string;
-  type?: "text" | "email" | "password";
+  type?: "text" | "email" | "password" | "date";
+  /** Le clavier du téléphone : « decimal » pour un prix, qui propose la virgule. */
+  inputMode?: "text" | "decimal" | "numeric";
+  /** Pour une date : la plus tardive acceptée (AAAA-MM-JJ). */
+  max?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -96,6 +102,8 @@ export function TextInput({
         autoComplete={autoComplete}
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
+        inputMode={inputMode}
+        max={max}
         className={cn(
           "h-12 w-full px-3.5 text-[0.95rem] outline-none transition-[box-shadow,background-color] duration-200",
           "placeholder:text-[color:var(--cap-ink-3)]",

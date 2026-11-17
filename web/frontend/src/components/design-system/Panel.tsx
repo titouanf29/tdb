@@ -70,7 +70,7 @@ export function Panel({
       <div className="min-w-0">
         {title && (
           <h2
-            className="text-[1.22rem] font-medium leading-tight tracking-[-0.006em]"
+            className="text-[1.22rem] font-semibold leading-tight tracking-[-0.012em]"
             style={{ fontFamily: "var(--cap-font-display)", color: "var(--cap-ink)" }}
           >
             {title}
@@ -99,6 +99,7 @@ export function Panel({
 
   return (
     <section
+      data-panneau={tone}
       data-repliable={repliable ? "" : undefined}
       className={cn("flex flex-col overflow-hidden", className)}
       style={{
