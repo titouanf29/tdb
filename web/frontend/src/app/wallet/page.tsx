@@ -67,6 +67,8 @@ export default function WalletPage() {
   const [fundAmount, setFundAmount] = useState("1000");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Le solde n'a pas répondu : « 0 € » serait faux, on le dit.
+  const [soldeIndisponible, setSoldeIndisponible] = useState(false);
 
   const load = useCallback(async () => {
     walletAPI.getCourbe().then(setCourbe).catch(() => {});
@@ -78,6 +80,7 @@ export default function WalletPage() {
       walletAPI.getHistoryBySymbol(),
     ]);
     if (b.status === "fulfilled") setBalance(b.value);
+    setSoldeIndisponible(b.status === "rejected");
     if (s.status === "fulfilled") setStats(s.value);
     if (o.status === "fulfilled") setOpen(o.value.positions || []);
     if (h.status === "fulfilled") setHistory(h.value.history || []);
@@ -313,7 +316,13 @@ export default function WalletPage() {
 
         <div data-visite="wallet-compte">
         <Panel title="Votre compte">
-          <div className="flex flex-wrap items-end gap-x-12 gap-y-7">
+          {soldeIndisponible && !balance && (
+            <FormError>
+              Le solde ne s&apos;est pas chargé : le serveur n&apos;a pas répondu. Votre compte n&apos;a pas changé.{" "}
+              <button type="button" onClick={() => { load(); }} className="font-semibold underline underline-offset-2">Réessayer</button>
+            </FormError>
+          )}
+          <div className={`flex flex-wrap items-end gap-x-12 gap-y-7${soldeIndisponible && !balance ? " hidden" : ""}`}>
             {/* Les trois chiffres vivants du compte. Ils défilent d'une valeur
                 à l'autre au lieu d'être remplacés : c'est le seul endroit de
                 l'écran où l'on voit son argent bouger, autant que ça se voie. */}

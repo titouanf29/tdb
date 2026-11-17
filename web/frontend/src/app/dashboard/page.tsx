@@ -63,6 +63,9 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Le serveur n'a pas rendu le solde : on le dit, au lieu d'afficher « 0 € ».
+  // Sur un site de finance, un zéro qui n'en est pas un est le pire message.
+  const [soldeIndisponible, setSoldeIndisponible] = useState(false);
 
   const load = useCallback(async () => {
     // allSettled, not all: one endpoint being down must not blank the screen.
@@ -74,6 +77,7 @@ export default function DashboardPage() {
       dailyIntentAPI.get(),
     ]);
     if (b.status === "fulfilled") setBalance(b.value);
+    setSoldeIndisponible(b.status === "rejected");
     if (s.status === "fulfilled") setStats(s.value);
     if (p.status === "fulfilled") setPositions(p.value.positions || []);
     if (f.status === "fulfilled") setFavorites(f.value.favorites || []);
@@ -167,7 +171,11 @@ export default function DashboardPage() {
                 <MotsApp texte={`${greeting}${first ? `, ${first}` : ""}.`} delai={0.4} />
               </Heading>
               <Text className="mt-2.5 max-w-[38rem]">
-                Espace réglé pour{" "}
+                {/* RÉGLÉ PAR DÉFAUT, ET DIT COMME TEL. « Espace réglé pour swing »
+                    sans qu'on ait rien choisi, c'était le site qui décidait en
+                    silence : deux visiteurs ne savaient ni d'où ça venait, ni
+                    ce que « swing » voulait dire. */}
+                {user?.trading_level == null ? "Réglé par défaut pour " : "Espace réglé pour "}
                 <Link
                   href="/settings?section=trading"
                   className="underline decoration-[color:var(--cap-ink-4)] underline-offset-2 transition-colors hover:text-[color:var(--cap-ink)]"
@@ -176,6 +184,13 @@ export default function DashboardPage() {
                 </Link>
                 , horizon {style.horizon.fr.toLowerCase()}.
                 {goalLine && ` ${goalLine}`}
+                {user?.trading_level == null && (
+                  <>
+                    {" "}
+                    <Link href="/settings?section=experience" className="cap-lien whitespace-nowrap">Dites-nous votre niveau</Link>
+                    , le site s&apos;ajuste.
+                  </>
+                )}
               </Text>
               {/* Le point du matin du jour, pour ceux qui ne l'ont pas reçu
                   sur leur appareil. */}
@@ -247,7 +262,15 @@ export default function DashboardPage() {
                   deviennent quatre tuiles qui se soulèvent au survol, avec
                   la courbe du compte et celle des positions : le geste d'un
                   tableau de bord « en verre », sur des surfaces opaques. */}
-              <TuilesCompte equity={equityAffichee} stats={stats} positions={positions} money={money} />
+              {soldeIndisponible && !balance ? (
+                <EmptyState
+                  title="Le solde ne s'est pas chargé"
+                  description="Le serveur n'a pas répondu. Votre compte n'a pas changé : réessayez dans un instant."
+                  action={{ label: refreshing ? "Nouvel essai…" : "Réessayer", onClick: refresh }}
+                />
+              ) : (
+                <TuilesCompte equity={equityAffichee} stats={stats} positions={positions} money={money} />
+              )}
 
               {positions.length > 0 && (
                 <div className="mt-5 border-t pt-2" style={{ borderColor: "var(--cap-line)" }}>
@@ -709,7 +732,7 @@ function NextStep({
           <Waypoint size={11} tone="amber" />
         </span>
         <span
-          className="text-[0.75rem] font-medium uppercase tracking-[0.15em]"
+          data-sur-nuit className="text-[0.75rem] font-medium uppercase tracking-[0.15em]"
           style={{ color: "rgba(232,237,241,0.82)" }}
         >
           {suggestion.eyebrow}

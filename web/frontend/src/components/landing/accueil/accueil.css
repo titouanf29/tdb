@@ -167,7 +167,7 @@
   margin-top: 14px; padding: 30px 24px 32px; border-radius: 22px; background: var(--acc-nuit); color: var(--acc-sur-nuit);
   box-shadow: 0 30px 50px -28px rgba(11, 23, 38, .75); font-size: clamp(1.7rem, 7.6vw, 2.5rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1.1;
 }
-.accueil .acc-reponse em { background: linear-gradient(var(--cap-ambre), var(--cap-ambre)) 0 94% / 100% 0.1em no-repeat; }
+.accueil .acc-reponse em { color: inherit; background: linear-gradient(var(--cap-ambre), var(--cap-ambre)) 0 94% / 100% 0.1em no-repeat; }
 .accueil .acc-reponse span { display: block; margin-top: 14px; color: var(--acc-sur-nuit-2); font-size: 1.05rem; font-weight: 500; letter-spacing: 0; line-height: 1.5; }
 
 /* ── 3. Trois gestes ── */

@@ -14,6 +14,9 @@ import { Num } from "@/components/design-system";
  * « en verre », sans le verre : les surfaces restent opaques, l'ambre marque.
  */
 
+/** Le ton d'un chiffre : neutre, en hausse ou en baisse. */
+type Ton = "ink" | "up" | "down";
+
 export function Courbe({ points, tone = "ink" }: { points: number[]; tone?: "ink" | "up" | "down" | "clair" }) {
   if (points.length < 2) return null;
   const min = Math.min(...points), max = Math.max(...points);
@@ -37,8 +40,8 @@ export function Courbe({ points, tone = "ink" }: { points: number[]; tone?: "ink
 
 export function Tuile({ titre, valeur, legende, variation, courbe, sombre, tone, href }: {
   titre: string; valeur: string; legende?: string;
-  variation?: { texte: string; tone: "up" | "down" | "ink" };
-  courbe?: number[]; sombre?: boolean; tone?: "ink" | "up" | "down"; href?: string;
+  variation?: { texte: string; tone: Ton };
+  courbe?: number[]; sombre?: boolean; tone?: Ton; href?: string;
 }) {
   let couleurVariation = "var(--cap-ink-2)";
   if (sombre) couleurVariation = "#F6F2EA";
@@ -116,12 +119,22 @@ export function TuilesCompte({ equity, stats, positions, money }: {
     <div className="grid grid-cols-2 gap-3">
       <Tuile sombre titre="Valeur totale" valeur={money(equity)} legende={h.legendeValeur} variation={h.variationValeur}
         courbe={h.pointsCapital} href="/wallet" />
-      <Tuile titre="Résultat latent" valeur={`${c.latent >= 0 ? "+" : ""}${money(c.latent)}`} tone={c.latent >= 0 ? "up" : "down"}
+      <Tuile titre="Résultat latent" valeur={resultat(c.latent, money)} tone={tonResultat(c.latent)}
         legende={c.legendeLatent} courbe={positions.map((p) => p.pnl_percent ?? 0)} href="/wallet" />
       <Tuile titre="Capital engagé" valeur={money(c.engage)} legende={c.legendeEngage} variation={c.variationEngage} href="/wallet" />
       <Tuile titre="Taux de réussite" valeur={h.valeurReussite} legende={h.legendeReussite} courbe={h.pointsTrades} href="/journal" />
     </div>
   );
+}
+
+/** « +12 € », « −8 € », et « 0 € » sans signe ni couleur : un « +0 € » vert ne dit rien. */
+function resultat(v: number, money: (v: number) => string): string {
+  if (Math.abs(v) < 0.5) return money(0);
+  return `${v > 0 ? "+" : "−"}${money(Math.abs(v))}`;
+}
+function tonResultat(v: number): Ton {
+  if (Math.abs(v) < 0.5) return "ink";
+  return v > 0 ? "up" : "down";
 }
 
 /** L'anneau sur l'encre : arc clair, point ambre au bout, chiffre au centre. */

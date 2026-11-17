@@ -785,6 +785,13 @@ body:has(.cap) {
   font-size: max(0.88rem, 1em);
   color: var(--cap-ink-2) !important;
 }
+/* SUR UN FOND SOMBRE, LA MÊME ÉTIQUETTE EN CLAIR. L'encre forcée ci-dessus
+   rendait « Votre prochaine étape » invisible sur la carte bleu nuit de
+   l'accueil (contraste 1,0 mesuré). */
+.cap [data-sur-nuit][class~="uppercase"][class*="tracking-[0."],
+.cap [data-sur-nuit] [class~="uppercase"][class*="tracking-[0."] {
+  color: rgba(232, 237, 241, 0.86) !important;
+}
 
 /* Le bouton principal porte le point ambre du logo ; au survol, il
    s'allume. */

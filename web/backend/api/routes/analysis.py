@@ -98,6 +98,23 @@ def price_decimals(value) -> int:
     return 8
 
 
+def perf_calendaire(close, decalage):
+    """La variation depuis la dernière clôture d'il y a `decalage` (un DateOffset), en %.
+
+    Au calendrier, pas en nombre de bougies : « 1 mois » valait 22 bougies,
+    soit 22 heures en horaire et 5 mois en hebdomadaire. None quand
+    l'historique ne remonte pas si loin."""
+    try:
+        c = close.dropna()
+        depart = c.index[-1] - decalage
+        if c.index[0] > depart:
+            return None
+        base = float(c[c.index <= depart].iloc[-1])
+        return (float(c.iloc[-1]) - base) / base * 100 if base else None
+    except Exception:
+        return None
+
+
 def _rendement_fraction(v):
     """Le rendement du dividende en fraction (0,0174 pour 1,74 %), quelle que soit la source.
 
@@ -1575,17 +1592,11 @@ async def analyze_asset(
         # Historical performance
         # Au calendrier, pas en nombre de bougies : « 1 mois » valait 22
         # bougies, soit 22 heures en horaire et 5 mois en hebdomadaire.
-        def _perf_mois(mois: int):
-            try:
-                c = close.dropna()
-                depart = c.index[-1] - pd.DateOffset(months=mois)
-                if c.index[0] > depart:
-                    return None   # l'historique ne remonte pas si loin
-                base = float(c[c.index <= depart].iloc[-1])
-                return (float(c.iloc[-1]) - base) / base * 100 if base else None
-            except Exception:
-                return None
-        hist_1m, hist_3m, hist_6m = _perf_mois(1), _perf_mois(3), _perf_mois(6)
+        hist_1m, hist_3m, hist_6m = (perf_calendaire(close, pd.DateOffset(months=m)) for m in (1, 3, 6))
+        # La semaine aussi, au calendrier : six bougies valaient cinq semaines
+        # en hebdomadaire, et Air Liquide affichait +11,6 % « sur une semaine »
+        # pour +6,9 % sur le mois.
+        hist_1w = perf_calendaire(close, pd.DateOffset(days=7))
         hist_ytd = None
         try:
             ytd_start = close[close.index.year == close.index[-1].year].iloc[0]
@@ -1595,7 +1606,7 @@ async def analyze_asset(
 
         performance = {
             "1d": round(price_change, 2),
-            "1w": round(((close.iloc[-1] - close.iloc[-6]) / close.iloc[-6] * 100), 2) if len(close) > 6 else None,
+            "1w": round(hist_1w, 2) if hist_1w is not None else None,
             "1m": round(hist_1m, 2) if hist_1m else None,
             "3m": round(hist_3m, 2) if hist_3m else None,
             "6m": round(hist_6m, 2) if hist_6m else None,

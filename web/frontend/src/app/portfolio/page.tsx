@@ -1,13 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getAssetName } from "@/lib/assetInfo";
+import { lireNombre, ecrireNombre, lireDate, dureeDetention } from "@/lib/saisie";
+import { ListeSuggestions, useAssetSuggestions } from "@/components/app/assetSearch";
 import Link from "next/link";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
   portfolioAPI,
   type CreatePositionData, type PortfolioSummary, type RealPosition,
 } from "@/lib/api";
-import { useSettings, convertCurrency } from "@/lib/SettingsContext";
+import { fr, useSettings, convertCurrency } from "@/lib/SettingsContext";
 import {
   Button, Checkbox, CloudCurtain, EmptyState, Field, FormError, Heading, Modal,
   Num, Panel, SegmentedControl, Text, TextInput, WeatherBackdrop,
@@ -40,6 +43,31 @@ const EMPTY_FORM: CreatePositionData = {
   leverage: 1,
 };
 
+/** « +47,0 % » en vert, « −3,2 % » en rouge : la couleur suit le signe, pas la place dans le classement. */
+function pctSigne(v: number): string { return `${v > 0 ? "+" : ""}${fr(v, 1)} %`; }
+function tonPct(v: number): "up" | "down" { return v >= 0 ? "up" : "down"; }
+
+type SaisieLue = { symbole: string; quantite: number; prix: number; date: string } | { erreur: string };
+
+/** Les champs du formulaire, lus à la française, ou le premier problème en clair. */
+function lireSaisie(x: { symbole: string; choisi: string | null; qteTexte: string; prixTexte: string; dateTexte: string }): SaisieLue {
+  const tape = x.symbole.trim();
+  if (!tape) return { erreur: "Indiquez l'actif : son nom ou son code." };
+  // Un nom tapé sans choisir dans la liste : la première proposition.
+  // Un code s'écrit en capitales (AI.PA) ; des minuscules disent un nom (Air Liquide).
+  const codeProbable = /^[A-Z0-9.^=-]{1,15}$/.test(tape);
+  const symbole = codeProbable ? tape.toUpperCase() : (x.choisi ?? "");
+  if (!symbole) return { erreur: `Choisissez « ${tape} » dans la liste, ou tapez son code (AI.PA pour Air Liquide).` };
+  const quantite = lireNombre(x.qteTexte);
+  if (quantite == null || quantite <= 0) return { erreur: "La quantité : un nombre plus grand que zéro, par exemple 60 ou 2,5." };
+  const prix = lireNombre(x.prixTexte);
+  if (prix == null || prix <= 0) return { erreur: "Le prix d'achat : un nombre plus grand que zéro, avec une virgule ou un point, par exemple 131,50." };
+  const date = lireDate(x.dateTexte);
+  if (!date) return { erreur: "La date d'achat : choisissez-la dans le calendrier, ou écrivez-la comme 20/03/2020." };
+  if (date > new Date().toISOString().slice(0, 10)) return { erreur: "La date d'achat ne peut pas être dans le futur." };
+  return { symbole, quantite, prix, date };
+}
+
 export default function PortfolioPage() {
   const { settings, eurUsd } = useSettings();
   const [animOn] = useAnimationsEnabled();
@@ -51,6 +79,12 @@ export default function PortfolioPage() {
   const [tab, setTab] = useState<Tab>("open");
 
   const [form, setForm] = useState<CreatePositionData>(EMPTY_FORM);
+  // Les champs chiffrés et la date se saisissent en texte, à la française
+  // (« 131,50 », « 20/03/2020 »), et ne sont lus qu'à l'enregistrement.
+  const [qteTexte, setQteTexte] = useState("");
+  const [prixTexte, setPrixTexte] = useState("");
+  const [dateTexte, setDateTexte] = useState(EMPTY_FORM.entry_date);
+  const sugg = useAssetSuggestions(form.symbol);
   const [editing, setEditing] = useState<RealPosition | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [closingPos, setClosingPos] = useState<RealPosition | null>(null);
@@ -86,6 +120,7 @@ export default function PortfolioPage() {
   const startCreate = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
+    setQteTexte(""); setPrixTexte(""); setDateTexte(EMPTY_FORM.entry_date);
     setError("");
     setFormOpen(true);
   };
@@ -102,20 +137,23 @@ export default function PortfolioPage() {
       broker: p.broker,
       notes: p.notes,
     });
+    sugg.poser(p.symbol);
+    setQteTexte(ecrireNombre(p.quantity));
+    setPrixTexte(ecrireNombre(p.entry_price));
+    setDateTexte(p.entry_date?.slice(0, 10) ?? EMPTY_FORM.entry_date);
     setError("");
     setFormOpen(true);
   };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.symbol.trim()) return setError("Indiquez un symbole.");
-    if (form.quantity <= 0) return setError("La quantité doit être supérieure à zéro.");
-    if (form.entry_price <= 0) return setError("Le prix d'entrée doit être supérieur à zéro.");
+    const lu = lireSaisie({ symbole: form.symbol, choisi: sugg.choisi?.symbol ?? null, qteTexte, prixTexte, dateTexte });
+    if ("erreur" in lu) return setError(lu.erreur);
 
     setBusy(true);
     setError("");
     try {
-      const payload = { ...form, symbol: form.symbol.trim().toUpperCase() };
+      const payload = { ...form, symbol: lu.symbole, quantity: lu.quantite, entry_price: lu.prix, entry_date: lu.date };
       if (editing) await portfolioAPI.updatePosition(editing.id, payload);
       else await portfolioAPI.createPosition(payload);
       setFormOpen(false);
@@ -232,21 +270,23 @@ export default function PortfolioPage() {
               </div>
             </div>
 
-            {(summary.best_position || summary.worst_position) && (
+            {/* Meilleure et moins bonne n'ont de sens qu'à partir de deux lignes :
+                avec une seule, la même apparaissait des deux côtés. */}
+            {open.length >= 2 && (summary.best_position || summary.worst_position) && (
               <div
                 className="mt-6 flex flex-wrap gap-x-10 gap-y-3 border-t pt-5"
                 style={{ borderColor: "var(--cap-line)" }}
               >
                 {summary.best_position && (
                   <Text size="small" as="span">
-                    Meilleure : <strong style={{ color: "var(--cap-ink)" }}>{summary.best_position.symbol}</strong>{" "}
-                    <Num tone="up">+{summary.best_position.pnl_percent.toFixed(1)} %</Num>
+                    Meilleure : <strong style={{ color: "var(--cap-ink)" }}>{getAssetName(summary.best_position.symbol)}</strong>{" "}
+                    <Num tone={tonPct(summary.best_position.pnl_percent)}>{pctSigne(summary.best_position.pnl_percent)}</Num>
                   </Text>
                 )}
                 {summary.worst_position && (
                   <Text size="small" as="span">
-                    Moins bonne : <strong style={{ color: "var(--cap-ink)" }}>{summary.worst_position.symbol}</strong>{" "}
-                    <Num tone="down">{summary.worst_position.pnl_percent.toFixed(1)} %</Num>
+                    Moins bonne : <strong style={{ color: "var(--cap-ink)" }}>{getAssetName(summary.worst_position.symbol)}</strong>{" "}
+                    <Num tone={tonPct(summary.worst_position.pnl_percent)}>{pctSigne(summary.worst_position.pnl_percent)}</Num>
                   </Text>
                 )}
               </div>
@@ -306,14 +346,27 @@ export default function PortfolioPage() {
         <form onSubmit={save} className="mt-6 space-y-4" noValidate>
           {error && <FormError>{error}</FormError>}
 
-          <Field label="Symbole" htmlFor="pf-symbol">
-            <TextInput
-              id="pf-symbol"
-              value={form.symbol}
-              onChange={(v) => setForm({ ...form, symbol: v.toUpperCase() })}
-              placeholder="AAPL"
-              required
-            />
+          {/* PAR SON NOM, COMME LA RECHERCHE DU BANDEAU. « Air Liquide » n'était
+              pas reconnu ici alors que le reste du site le trouve. */}
+          <Field label="Actif" htmlFor="pf-symbol" hint="Son nom ou son code : Air Liquide, AI.PA.">
+            <div className="relative" onKeyDown={sugg.touche}>
+              <TextInput
+                id="pf-symbol"
+                value={form.symbol}
+                onChange={(v) => setForm({ ...form, symbol: v })}
+                placeholder="Air Liquide"
+                autoComplete="off"
+                required
+              />
+              {sugg.ouvert && (
+                <ListeSuggestions
+                  hits={sugg.hits} actif={sugg.actif} cherche={sugg.cherche} requete={form.symbol}
+                  onSurvol={sugg.setActif}
+                  onChoisir={(sym) => { sugg.poser(sym); setForm({ ...form, symbol: sym }); }}
+                  className="absolute inset-x-0 top-full z-20 mt-1.5 overflow-hidden"
+                />
+              )}
+            </div>
           </Field>
 
           <div>
@@ -335,29 +388,32 @@ export default function PortfolioPage() {
             <Field label="Quantité" htmlFor="pf-qty">
               <TextInput
                 id="pf-qty"
-                value={form.quantity ? String(form.quantity) : ""}
-                onChange={(v) => setForm({ ...form, quantity: Number(v) || 0 })}
-                placeholder="10"
+                value={qteTexte}
+                onChange={setQteTexte}
+                placeholder="60"
+                inputMode="decimal"
                 required
               />
             </Field>
             <Field label="Prix d'entrée" htmlFor="pf-entry">
               <TextInput
                 id="pf-entry"
-                value={form.entry_price ? String(form.entry_price) : ""}
-                onChange={(v) => setForm({ ...form, entry_price: Number(v) || 0 })}
-                placeholder="245.18"
+                value={prixTexte}
+                onChange={setPrixTexte}
+                placeholder="131,50"
+                inputMode="decimal"
                 required
               />
             </Field>
           </div>
 
-          <Field label="Date d'entrée" htmlFor="pf-date">
+          <Field label="Date d'achat" htmlFor="pf-date" hint="Le calendrier, ou au clavier : 20/03/2020.">
             <TextInput
               id="pf-date"
-              value={form.entry_date}
-              onChange={(v) => setForm({ ...form, entry_date: v })}
-              placeholder="2026-01-15"
+              type="date"
+              value={lireDate(dateTexte) ?? dateTexte}
+              onChange={setDateTexte}
+              max={new Date().toISOString().slice(0, 10)}
             />
           </Field>
 
@@ -444,8 +500,12 @@ function PositionRow({
               className="text-[0.98rem] font-medium transition-colors hover:underline"
               style={{ color: "var(--cap-ink)" }}
             >
-              {p.symbol}
+              {/* Le nom d'abord : « Air Liquide » se lit, « AI.PA » se décode. */}
+              {getAssetName(p.symbol)}
             </Link>
+            {getAssetName(p.symbol) !== p.symbol && (
+              <span className="text-[0.82rem]" style={{ color: "var(--cap-ink-3)" }}>{p.symbol}</span>
+            )}
             <span
               className="rounded-[6px] px-1.5 py-0.5 text-[0.7rem]"
               style={{ backgroundColor: "var(--cap-surface-2)", color: "var(--cap-ink-3)" }}
@@ -456,7 +516,7 @@ function PositionRow({
           <Text size="caption" className="mt-1">
             {p.quantity} × {money(p.entry_price)}
             {p.broker ? ` · ${p.broker}` : ""}
-            {p.days_held != null ? ` · ${p.days_held} j` : ""}
+            {p.days_held != null ? ` · depuis ${dureeDetention(p.days_held)}` : ""}
           </Text>
         </div>
 
