@@ -39,6 +39,24 @@ import { useTradingStyle } from "@/lib/tradingStyle";
 
 type Tab = "open" | "closed";
 
+/** La barre engagé / disponible, sous les chiffres du compte. */
+function Repartition({ engage, disponible, money }: Readonly<{ engage: number; disponible: number; money: (v: number) => string }>) {
+  const total = engage + disponible;
+  const part = total > 0 ? Math.round((engage / total) * 100) : 0;
+  return (
+    <div className="mt-7">
+      <div className="flex h-2.5 overflow-hidden rounded-full" style={{ backgroundColor: "var(--cap-surface-2)" }} role="img"
+        aria-label={`${part} % du compte engagé dans des positions`}>
+        <div className="cap-barre h-full rounded-full" style={{ width: `${Math.max(part, part > 0 ? 2 : 0)}%`, background: "linear-gradient(90deg, var(--cap-ocean), #2A7F99)" }} />
+      </div>
+      <div className="mt-2.5 flex flex-wrap justify-between gap-x-6 gap-y-1 text-[0.88rem]" style={{ color: "var(--cap-ink-2)" }}>
+        <span><span className="font-semibold" style={{ color: "var(--cap-ocean)" }}>{part} %</span> engagés dans vos positions · {money(engage)}</span>
+        <span>{money(disponible)} disponibles</span>
+      </div>
+    </div>
+  );
+}
+
 export default function WalletPage() {
   const { settings, eurUsd } = useSettings();
   const [animOn] = useAnimationsEnabled();
@@ -367,6 +385,11 @@ export default function WalletPage() {
               </div>
             )}
           </div>
+
+          {/* LA RÉPARTITION DU COMPTE, D'UN COUP D'ŒIL : ce qui travaille dans
+              les positions, ce qui reste disponible. Trois chiffres en ligne
+              ne disaient pas la proportion ; une barre la montre. */}
+          {balance && equity > 0 && <Repartition engage={Math.max(0, equity - balance.balance)} disponible={balance.balance} money={money} />}
 
           {stats && stats.total_trades > 0 && (
             <div

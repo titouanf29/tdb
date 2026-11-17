@@ -1128,3 +1128,57 @@ html.lecture-confortable .cap :is(p, li, dd) { line-height: 1.7; }
 @media (prefers-reduced-motion: reduce) { .cap .av-dots i { animation: none; } }
 .anim-off .av-dots i { animation: none; }
 .anim-off .av-champ::after { transition: none; }
+
+/* ── LA FINITION ──────────────────────────────────────────────────────────
+   Même direction, plus de soin : un ciel un peu plus lumineux, des panneaux
+   blancs qui se détachent par une ombre douce plutôt que par un filet sec,
+   des boutons qui ont du relief, des variations en pastilles teintées. */
+
+/* Le ciel : une lumière qui vient d'en haut à droite, comme le soleil du logo. */
+.cap:not(.vitrine) {
+  background-image:
+    radial-gradient(90% 60% at 85% -10%, rgba(255, 244, 222, .55), transparent 60%),
+    linear-gradient(180deg, #E4EBF3 0%, var(--cap-bg) 420px);
+  background-repeat: no-repeat;
+}
+[data-cap-theme="dark"] .cap:not(.vitrine) {
+  background-image: radial-gradient(90% 60% at 85% -10%, rgba(229, 168, 58, .07), transparent 60%);
+}
+
+/* Les panneaux : blancs, arrondis, posés sur le ciel par une ombre en deux temps. */
+.cap [data-panneau="surface"] {
+  border-radius: 20px !important;
+  background: linear-gradient(180deg, #FFFFFF 0%, #FBFCFE 100%) !important;
+  box-shadow:
+    0 0 0 1px rgba(11, 23, 38, .07),
+    0 1px 2px rgba(11, 23, 38, .04),
+    0 14px 34px -20px rgba(11, 23, 38, .28) !important;
+}
+[data-cap-theme="dark"] .cap [data-panneau="surface"] {
+  background: linear-gradient(180deg, #1F2D3D 0%, var(--cap-surface) 100%) !important;
+  box-shadow: 0 0 0 1px rgba(233, 239, 244, .08), 0 14px 34px -20px rgba(0, 0, 0, .6) !important;
+}
+
+/* Le bouton principal : l'encre, avec un reflet en haut et une ombre portée ;
+   il se soulève au survol et s'enfonce au clic. */
+.cap [data-btn="primary"] {
+  background-image: linear-gradient(180deg, #1A2B42 0%, #0B1726 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 8px 18px -10px rgba(11, 23, 38, .65) !important;
+  transition: transform .2s var(--cap-ease), box-shadow .2s ease, filter .2s ease !important;
+}
+.cap [data-btn="primary"]:hover { transform: translate3d(0, -1px, 0); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 12px 24px -12px rgba(11, 23, 38, .7) !important; }
+.cap [data-btn="primary"]:active { transform: translate3d(0, 1px, 0) scale(.99); }
+[data-cap-theme="dark"] .cap [data-btn="primary"] { background-image: none !important; }
+
+/* Les variations en pastilles. */
+.cap .cap-variation { display: inline-flex; min-width: 4.6rem; justify-content: flex-end; padding: .18rem .5rem; border-radius: 999px; }
+.cap .cap-variation[data-variation="hausse"] { background: color-mix(in srgb, var(--cap-up) 11%, transparent); }
+.cap .cap-variation[data-variation="baisse"] { background: color-mix(in srgb, var(--cap-down) 10%, transparent); }
+.cap .cap-variation[data-variation="stable"] { background: var(--cap-surface-2); }
+
+/* Les lignes cliquables : un fond doux au survol, et la flèche qui avance. */
+.cap a.cap-ligne:hover, .cap .cap-liste > a:hover { background: color-mix(in srgb, var(--cap-ocean) 5%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cap [data-btn="primary"], .cap [data-btn="primary"]:hover, .cap [data-btn="primary"]:active { transform: none; transition: none !important; }
+}

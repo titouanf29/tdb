@@ -7,6 +7,7 @@ import { ArrowRight, CloudOff, Globe2, RefreshCw, Sun } from "lucide-react";
 import { FaconDeTrader } from "@/components/dashboard/FaconDeTrader";
 import { Intention } from "@/components/dashboard/Intention";
 import { ProchaineLecon } from "@/components/dashboard/ProchaineLecon";
+import { RechercheActif } from "@/components/dashboard/RechercheActif";
 import { ActionsRapides, Anneau, TuilesCompte } from "@/components/dashboard/Tuiles";
 import { lundiAPreparer, weekendOuvert } from "@/lib/semaine";
 import { useAuth } from "@/lib/AuthContext";
@@ -198,13 +199,22 @@ export default function DashboardPage() {
             </div>
             </div>
 
-            <WeatherToggle
-              on={animOn}
-              onChange={setAnimOn}
-              label={WEATHER_LABEL[condition]}
-              hasData={avgChange != null}
-            />
+            {/* Au téléphone, ces trois réglages passaient avant la recherche : ils
+                restent sur grand écran, les mêmes sont dans le menu et les réglages. */}
+            <div className="hidden sm:block">
+              <WeatherToggle
+                on={animOn}
+                onChange={setAnimOn}
+                label={WEATHER_LABEL[condition]}
+                hasData={avgChange != null}
+              />
+            </div>
           </header>
+        </Reveal>
+
+        {/* LE GESTE PRINCIPAL, EN GRAND : la question du site, dès l'arrivée. */}
+        <Reveal delay={0.02}>
+          <RechercheActif favoris={favorites} />
         </Reveal>
 
         {/* Après une absence : ce qui s'est passé entre-temps. */}

@@ -12,6 +12,12 @@ import { Num } from "./Text";
  * one column of figures instead of hopping between fifteen boxes. Separation
  * is a hairline between rows, nothing more.
  */
+/** « hausse », « baisse » ou « stable » : la teinte de la pastille. */
+function variationSens(v: number): "hausse" | "baisse" | "stable" {
+  if (Math.abs(v) < 0.005) return "stable";
+  return v > 0 ? "hausse" : "baisse";
+}
+
 export function DataRow({
   label,
   sub,
@@ -46,13 +52,14 @@ export function DataRow({
       <div className="flex shrink-0 items-baseline gap-4 sm:gap-6">
         {value != null && <Num className="text-[0.95rem]">{value}</Num>}
         {change != null && (
-          <Num
-            tone={change >= 0 ? "up" : "down"}
-            className="w-[4.5rem] text-right text-[0.9rem]"
-          >
-            {change >= 0 ? "+" : ""}
-            {change.toFixed(2)} %
-          </Num>
+          // Une pastille teintée : la hausse et la baisse se voient d'un coup
+          // d'œil dans une colonne, sans lire le signe.
+          <span data-variation={variationSens(change)} className="cap-variation">
+            <Num tone={change >= 0 ? "up" : "down"} className="text-[0.88rem] font-semibold">
+              {change > 0 ? "+" : ""}
+              {change.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace("-", "−")} %
+            </Num>
+          </span>
         )}
         {/* Une ligne qui mène quelque part le montre au survol. */}
         {href && <ChevronRight aria-hidden className="cap-chevron -ml-2 h-3.5 w-3.5 self-center sm:-ml-3" style={{ color: "var(--cap-ink-3)" }} />}

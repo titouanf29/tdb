@@ -216,7 +216,7 @@
 /* ── 6. Le dernier mot ── */
 .accueil .acc-final { padding: calc(72px + var(--acc-bord)) 0 88px; }
 .accueil .acc-final .acc-cta { margin-top: 32px; }
-.accueil .acc-nuit [data-btn="primary"] { background-color: var(--acc-sur-nuit) !important; color: var(--acc-nuit) !important; }
+.accueil .acc-nuit [data-btn="primary"] { background-image: none !important; background-color: var(--acc-sur-nuit) !important; color: var(--acc-nuit) !important; }
 .accueil .acc-nuit .acc-lien-second { color: var(--acc-sur-nuit); }
 
 /* La barre d'action du téléphone : pleine, sous le pouce, quand le bouton du haut a disparu. */
@@ -228,7 +228,7 @@
 }
 .accueil .acc-dock.is-on { visibility: visible; transform: none; transition: transform .45s var(--acc-ease); }
 .accueil .acc-dock span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.accueil .acc-dock [data-btn="primary"] { flex: none; background-color: var(--acc-sur-nuit) !important; color: var(--acc-nuit) !important; }
+.accueil .acc-dock [data-btn="primary"] { flex: none; background-image: none !important; background-color: var(--acc-sur-nuit) !important; color: var(--acc-nuit) !important; }
 
 /* Apparition au défilement : seulement si le script tourne. */
 .acc-js .accueil .acc-reveal { opacity: 0; transform: translate3d(0, 28px, 0); transition: opacity .8s var(--acc-ease), transform .8s var(--acc-ease); transition-delay: var(--d, 0s); }
